@@ -9,3 +9,28 @@ a { color: #9cc4ff; }
 .card .t { font-weight: 600; margin-bottom: 4px } .card .g { opacity: .9 }
 .card .m { opacity: .7; margin-top: 4px; display: flex; gap: 8px; flex-wrap: wrap } .card .prov { color: #ffd966 }
 .card .x { opacity: .6; margin-top: 4px } .card a { color: #9cc4ff }
+
+/* top bar */
+.topbar { position: absolute; top: 0; left: 0; right: 0; padding: 8px 12px; background: linear-gradient(#0b0d10ee, #0b0d1000); font-size: 13px; pointer-events: none; }
+.topbar > * { pointer-events: auto; }
+.topbar .row { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.topbar .brand { letter-spacing: .02em; }
+.topbar .ctl { display: flex; gap: 6px; align-items: center; }
+.topbar select, .topbar input[type=search] { background: #15181d; color: #e6e6e6; border: 1px solid #2a2f37; border-radius: 6px; padding: 4px 8px; font: inherit; }
+.topbar input[type=search] { width: 220px; }
+.topbar button { background: #15181d; color: #e6e6e6; border: 1px solid #2a2f37; border-radius: 6px; padding: 4px 10px; font: inherit; cursor: pointer; }
+button.link { background: none; border: none; color: #9cc4ff; padding: 0; cursor: pointer; font: inherit; }
+.topbar .purpose { margin-top: 4px; font-size: 12px; max-width: 900px; }
+.dim { opacity: .6; } .small { font-size: 12px; }
+.topbar .results { list-style: none; margin: 6px 0 0; padding: 8px 10px; background: #15181dee; border: 1px solid #2a2f37; border-radius: 8px; max-width: 520px; }
+.topbar .results li { padding: 2px 0; }
+.topbar .about { margin-top: 6px; padding: 10px 12px; background: #15181dee; border: 1px solid #2a2f37; border-radius: 8px; max-width: 720px; }
+.topbar .about blockquote { margin: 6px 0; padding-left: 10px; border-left: 2px solid #4e79a7; }
+
+/* filters strip */
+.filters { position: absolute; left: 12px; bottom: 12px; font-size: 13px; max-width: 720px; }
+.filters .panel { margin-top: 6px; padding: 10px 12px; background: #15181dee; border: 1px solid #2a2f37; border-radius: 8px; }
+.filters .hist { display: flex; align-items: flex-end; gap: 2px; height: 56px; user-select: none; }
+.filters .bar { flex: 1 1 0; min-width: 6px; background: #4e79a7; border-radius: 2px 2px 0 0; cursor: crosshair; }
+.filters .bar.off { background: #2a2f37; }
+.filters .row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px; align-items: center; }
