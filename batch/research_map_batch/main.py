@@ -10,7 +10,7 @@ from .hulls import hulls as make_hulls
 from .label import label_all
 from .questions import regrow
 from .trails import rebuild_trails
-from .write import assemble_layout, write_layout
+from .write import assemble_layout, write_layout, next_version, promote
 
 
 def make_llm():
@@ -38,8 +38,14 @@ def cli():
     r.add_argument("--dry-run", action="store_true")
     r.add_argument("--skip-questions", action="store_true")
     r.add_argument("--no-reuse", action="store_true", help="ignore previous cluster labels (re-name everything)")
+    pr = sub.add_parser("promote", help="publish a gated draft layout by version")
+    pr.add_argument("version", type=int)
     a = ap.parse_args()
     db = connect()
+    if a.cmd == "promote":
+        ok = promote(db, a.version)
+        print(f"promoted v{a.version}" if ok else f"no draft v{a.version}", file=sys.stderr)
+        sys.exit(0 if ok else 1)
     llm, embed = make_llm()
     ids, E = load_vectors(db)
     print(f"{len(ids)} vectors", file=sys.stderr)
@@ -59,7 +65,7 @@ def cli():
     norm = load_normalized(db)
     texts = {i: f"{norm.get(i, {}).get('title', '')}: {norm.get(i, {}).get('summaryEn', '')}" for i in ids}
     clusters, themes = label_all(ids, E, texts, stable, reused, llm, embed)
-    layout = assemble_layout(ids, lay["xy"], stable, clusters, themes, make_hulls(lay["xy"], stable), None if a.force_publish else lay["residual"], prev["version"] if prev else 0, threshold=a.threshold)
+    layout = assemble_layout(ids, lay["xy"], stable, clusters, themes, make_hulls(lay["xy"], stable), lay["residual"], next_version(db) - 1, threshold=a.threshold, force_publish=a.force_publish)
     if a.dry_run:
         print({k: (v if k not in ("points", "labels", "hulls") else len(v)) for k, v in layout.items()})
         return

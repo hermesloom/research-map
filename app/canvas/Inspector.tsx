@@ -23,7 +23,7 @@ export default function Inspector({ snap, xId, onClose, loadMeta }: { snap: Snap
         {meta.thumb[i] && <img src={meta.thumb[i]!} alt="" style={{ maxWidth: "100%", borderRadius: 6 }} />}
         <dl>
           <dt>Where it lives</dt><dd>{theme?.label ?? "—"} › {leaf?.label ?? "unclustered"}{p.provisional[i] ? " (provisional)" : ""}</dd>
-          <dt>Relation to the question</dt><dd>grade {p.grade[i]} · {meta.role[i]}{meta.rationale[i] && <><br /><span className="dim">{meta.rationale[i]}</span></>}</dd>
+          <dt>Relation to the question</dt><dd>{p.grade[i] < 0 ? "not graded yet" : `grade ${p.grade[i]} · ${meta.role[i]}`}{meta.rationale[i] && <><br /><span className="dim">{meta.rationale[i]}</span></>}</dd>
           {meta.subQuestions[i].length > 0 && <><dt>Sub-questions</dt><dd>{meta.subQuestions[i].map((q) => <div key={q}>{qText(q)}</div>)}</dd></>}
           {meta.tags[i].length > 0 && <><dt>Tags</dt><dd>{meta.tags[i].join(", ")}</dd></>}
           <dt>Kind · language</dt><dd>{p.kinds[p.kind[i]]} · {meta.lang[i]}</dd>

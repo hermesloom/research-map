@@ -26,7 +26,8 @@ type RunDeps = Partial<StageDeps> & { fetchNewPosts?: typeof fetchNewPosts; publ
 
 /** The daily job: idempotent, resumable, never throws; writes a `runs` document. */
 export async function runDaily(db: Db, deps: RunDeps = {}): Promise<RunDoc> {
-  const d: StageDeps = { ...defaultDeps(db), ...deps }; const c = collections(db); const started = d.now(); const budget = deps.budgetMs ?? 240_000;
+  const c = collections(db); const started = (deps.now ?? (() => new Date()))(); const budget = deps.budgetMs ?? 240_000;
+  const d: StageDeps = { ...defaultDeps(db), ...deps, deadline: deps.deadline ?? (() => started.getTime() + budget - 30_000) };
   const run: RunDoc = { startedAt: started, kind: "daily", counts: {}, errors: [], notes: [], ok: true };
   const { insertedId } = await c.runs.insertOne(run); const timeLeft = () => budget - (Date.now() - started.getTime());
   try {
@@ -50,4 +51,10 @@ export async function runDaily(db: Db, deps: RunDeps = {}): Promise<RunDoc> {
     if ((changed || deps.force) && layout) { const m = await (deps.publish ?? publishSnapshot)(db); run.counts.published = m.count; }
   } catch (e) { run.ok = false; run.errors.push(String(e).slice(0, 500)); }
   run.finishedAt = d.now(); await c.runs.replaceOne({ _id: insertedId }, run); return run;
+}
+
+/** Back off re-layout dispatches: never while a draft newer than the published layout is waiting, and at most every 3 days. */
+export function shouldDispatchRelayout(a: { recommended: boolean; hasNewerDraft: boolean; lastDispatchAt: Date | null; now: Date }): boolean {
+  if (!a.recommended || a.hasNewerDraft) return false;
+  return !a.lastDispatchAt || a.now.getTime() - a.lastDispatchAt.getTime() > 3 * 86400_000;
 }

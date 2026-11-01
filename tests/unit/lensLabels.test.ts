@@ -21,3 +21,11 @@ describe("lensLabels", () => {
     expect(lensLabels("terrain", p, { x: new Float32Array(4), y: new Float32Array(4) }, { questions, subOrder: [], terrainLabels: t })).toBe(t);
   });
 });
+
+import { primarySeed } from "@/app/canvas/lenses";
+describe("primarySeed", () => {
+  const qs = [{ id: "core", text: "c", parentId: null }, { id: "seed-1", text: "s", parentId: "core" }, { id: "ind-x", text: "i", parentId: "seed-1" }];
+  it("maps an induced child question to its seed ancestor, keeps seeds, nulls unknowns", () => {
+    expect(primarySeed("ind-x", qs)).toBe("seed-1"); expect(primarySeed("seed-1", qs)).toBe("seed-1"); expect(primarySeed("nope", qs)).toBeNull(); expect(primarySeed(null, qs)).toBeNull();
+  });
+});

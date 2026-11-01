@@ -42,7 +42,8 @@ describe("enrichUrl ladder", () => {
     expect(r.source).toBe("openalex");
   });
   it("falls through to wayback then thin on a dead generic page", async () => {
-    const dead = seq([[500, "{}"], [200, JSON.stringify({ archived_snapshots: {} })]]);
+    // Firecrawl reaches the page but it is gone (HTTP 404 inside the scrape result); Wayback has no snapshot.
+    const dead = seq([[200, JSON.stringify({ success: true, data: { metadata: { statusCode: 404 } } })], [200, JSON.stringify({ archived_snapshots: {} })]]);
     const r = await enrichUrl("https://dead.example.org/some/long-path-name", { fetchImpl: dead, userAgent: "t", firecrawlKey: "k" });
     expect(r.source).toBe("thin"); expect(r.thin).toBe(true); expect(r.title).toMatch(/dead\.example\.org/); expect(r.title).toMatch(/long path name/);
   });
@@ -51,4 +52,22 @@ describe("enrichUrl ladder", () => {
     expect(r.source).toBe("none"); expect((r as any).deferred).toBe(true);
   });
   it("thinRecord humanizes the path", () => { expect(thinRecord("https://foo.org/a_b-c/d.pdf").title).toBe("foo.org · a b c d"); });
+});
+
+describe("transient failures are deferred, not cached as thin", () => {
+  it("firecrawl 429/5xx → deferred", async () => {
+    for (const code of [429, 500, 503]) {
+      const r = await enrichUrl("https://xtdb.com/", { fetchImpl: seq([[code, "{}"]]), userAgent: "t", firecrawlKey: "k" });
+      expect(r.source).toBe("none"); expect((r as any).deferred).toBe(true);
+    }
+  });
+  it("network error on the paid rung → deferred", async () => {
+    const boom = (async () => { throw new TypeError("fetch failed"); }) as any;
+    const r = await enrichUrl("https://xtdb.com/", { fetchImpl: boom, userAgent: "t", firecrawlKey: "k" });
+    expect((r as any).deferred).toBe(true);
+  });
+  it("a genuine 404 on a generic page still falls through to thin", async () => {
+    const r = await enrichUrl("https://gone.example.org/a", { fetchImpl: seq([[404, "{}"], [200, JSON.stringify({ archived_snapshots: {} })]]), userAgent: "t", firecrawlKey: "k" });
+    expect(r.source).toBe("thin");
+  });
 });

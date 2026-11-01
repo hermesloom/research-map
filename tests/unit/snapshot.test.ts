@@ -14,7 +14,7 @@ describe("buildSnapshot", () => {
   it("snapshot drops tombstoned items and aligns arrays", () => {
     const s = buildSnapshot({ layout, items: [item("1"), item("2"), item("gone", { deletedAt: now })], enrichment, relations, questions, overrides: [], generatedAt: now });
     expect(s.points.ids).toEqual(["1", "2"]); expect(s.points.x.length).toBe(2); expect(s.meta.title).toEqual(["One", "t 2"]);
-    expect(s.points.grade).toEqual([3, 1]); expect(s.meta.role[1]).toBe("tangent"); expect(s.points.provisional).toEqual([0, 1]);
+    expect(s.points.grade).toEqual([3, -1]); expect(s.meta.role[1]).toBe("ungraded"); expect(s.points.provisional).toEqual([0, 1]);
     expect(s.meta.subQuestions[0]).toEqual(["seed-1"]); expect(s.labels.questions.length).toBe(2);
   });
   it("emits theme, leaf and item labels with levels 0/1/2", () => {
@@ -25,5 +25,12 @@ describe("buildSnapshot", () => {
     const l2 = applyOverrides(layout, [{ type: "pin", xId: "2", payload: { x: 5, y: 6 }, createdAt: now }, { type: "renameLabel", clusterId: 0, payload: { label: "Renamed" }, createdAt: now }, { type: "moveLeaf", xId: "1", payload: { clusterId: 1 }, createdAt: now }] as any);
     expect(l2.points.find((p) => p.xId === "2")).toMatchObject({ x: 5, y: 6 }); expect(l2.clusters[0].label).toBe("Renamed"); expect(l2.labels[0].text).toBe("Renamed"); expect(l2.points[0].clusterId).toBe(1);
     expect(layout.clusters[0].label).toBe("Leaf A"); // input not mutated
+  });
+});
+
+describe("ungraded items", () => {
+  it("ship as grade -1 / role 'ungraded', never as a fabricated grade 1", () => {
+    const s = buildSnapshot({ layout, items: [item("1"), item("2")], enrichment, relations, questions, overrides: [], generatedAt: now });
+    expect(s.points.grade[1]).toBe(-1); expect(s.meta.role[1]).toBe("ungraded");
   });
 });

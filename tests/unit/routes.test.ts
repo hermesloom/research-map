@@ -4,13 +4,14 @@ beforeEach(() => { process.env.MONGODB_URI = "m"; process.env.OPENAI_API_KEY = "
 
 describe("cron route auth", () => {
   it("rejects missing or wrong bearer", async () => {
-    vi.doMock("@/lib/db", () => ({ getDb: async () => ({}) })); vi.doMock("@/lib/pipeline/run", () => ({ runDaily: async () => ({ ok: true }) }));
+    vi.doMock("@/lib/db", () => ({ getDb: async () => ({}), collections: () => ({}) })); vi.doMock("@/lib/pipeline/run", () => ({ runDaily: async () => ({ ok: true }), shouldDispatchRelayout: () => false }));
     const { GET } = await import("@/app/api/cron/ingest/route");
     expect((await GET(new Request("http://x/api/cron/ingest"))).status).toBe(401);
     expect((await GET(new Request("http://x/api/cron/ingest", { headers: { authorization: "Bearer nope" } }))).status).toBe(401);
   });
   it("runs with the right bearer and returns the run", async () => {
-    vi.doMock("@/lib/db", () => ({ getDb: async () => ({}) })); vi.doMock("@/lib/pipeline/run", () => ({ runDaily: async () => ({ ok: true, notes: [], counts: { ingested: 2 } }) })); vi.doMock("@/lib/pipeline/reconcile", () => ({ reconcileDeletions: async () => ({}) }));
+    const q = { findOne: async () => null, updateOne: async () => ({}) };
+    vi.doMock("@/lib/db", () => ({ getDb: async () => ({}), collections: () => ({ layouts: q, runs: q }) })); vi.doMock("@/lib/pipeline/run", () => ({ runDaily: async () => ({ ok: true, notes: [], counts: { ingested: 2 }, startedAt: new Date() }), shouldDispatchRelayout: () => false })); vi.doMock("@/lib/pipeline/reconcile", () => ({ reconcileDeletions: async () => ({}) }));
     const { GET } = await import("@/app/api/cron/ingest/route");
     const res = await GET(new Request("http://x/api/cron/ingest", { headers: { authorization: "Bearer s3cret" } }));
     expect(res.status).toBe(200); expect((await res.json()).counts.ingested).toBe(2);

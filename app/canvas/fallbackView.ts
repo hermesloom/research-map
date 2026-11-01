@@ -8,5 +8,7 @@ export function initialViewState(x: Float32Array, y: Float32Array, viewportPx = 
   const span = Math.max(xmax - xmin, ymax - ymin) || 1;
   return { target: [(xmin + xmax) / 2, (ymin + ymax) / 2, 0], zoom: Math.log2(viewportPx / span) };
 }
-export const toViewState = (v: ViewportState): OrthoViewState => ({ target: [v.x, v.y, 0], zoom: Math.log2(v.scale) });
-export const toViewport = (v: OrthoViewState): ViewportState => ({ x: v.target[0], y: v.target[1], scale: Math.pow(2, v.zoom) });
+/** Embedding Atlas `scale` maps data units to [-1, 1]: pixels per unit = scale × max(w, h) / 2. deck zoom = log2(pixels per unit). */
+const pxPerUnitOfScale = (scale: number, w: number, h: number) => scale * Math.max(w, h) / 2;
+export const toViewState = (v: ViewportState, w: number, h: number): OrthoViewState => ({ target: [v.x, v.y, 0], zoom: Math.log2(pxPerUnitOfScale(v.scale, w, h)) });
+export const toViewport = (v: OrthoViewState, w: number, h: number): ViewportState => ({ x: v.target[0], y: v.target[1], scale: Math.pow(2, v.zoom) / (Math.max(w, h) / 2) });

@@ -28,7 +28,7 @@ export function buildSnapshot(input: { layout: Layout; items: Item[]; enrichment
   const gradeSum = new Map<number, [number, number]>();
   for (const p of pts) {
     const it = live.get(p.xId)!; const en = input.enrichment.get(p.xId); const rels = input.relations.get(p.xId) ?? []; const core = rels.find((r) => r.questionId === "core");
-    const grade = it.isResearchQuestion ? 3 : core?.grade ?? 1; const role = core?.role ?? "tangent";
+    const grade = it.isResearchQuestion ? 3 : core?.grade ?? -1; const role = core?.role ?? "ungraded";   // -1 = not graded yet; never fabricate a grade
     points.ids.push(p.xId); points.x.push(p.x); points.y.push(p.y); points.leaf.push(p.clusterId); points.theme.push(themeOfCluster.get(p.clusterId) ?? -1); points.grade.push(grade);
     points.provisional.push(p.provisional ? 1 : 0); points.createdAt.push(Math.floor(it.createdAt.getTime() / 1000)); points.kind.push(Math.max(0, KINDS.indexOf(it.kind)));
     const n = en?.normalized; const firstUrl = it.urls.find((u) => !u.isMedia);
@@ -36,9 +36,9 @@ export function buildSnapshot(input: { layout: Layout; items: Item[]; enrichment
     meta.ids.push(p.xId); meta.title.push(title); meta.gist.push(n?.gist ?? it.text.slice(0, 280)); meta.url.push(firstUrl?.expandedUrl ?? null); meta.domain.push(firstUrl?.domain ?? null);
     meta.thumb.push(en?.thumbUrl ?? en?.ogImage ?? null); meta.role.push(role); meta.rationale.push(core?.rationale ?? ""); meta.tags.push(n?.tagsEn ?? []); meta.lang.push(n?.language ?? it.lang ?? "und");
     meta.subQuestions.push(rels.filter((r) => r.questionId !== "core").map((r) => r.questionId));
-    const gs = gradeSum.get(p.clusterId) ?? [0, 0]; gs[0] += grade; gs[1] += 1; gradeSum.set(p.clusterId, gs);
-    labels.push({ x: p.x, y: p.y, content: title, level: 2, priority: grade });
-    if (en?.thumbUrl) labels.push({ x: p.x, y: p.y, content: { image: en.thumbUrl, width: 96, height: 64 }, level: 2, priority: grade + 0.5 });
+    const gs = gradeSum.get(p.clusterId) ?? [0, 0]; if (grade >= 0) { gs[0] += grade; gs[1] += 1; } gradeSum.set(p.clusterId, gs);
+    labels.push({ x: p.x, y: p.y, content: title, level: 2, priority: Math.max(0, grade) });
+    if (en?.thumbUrl) labels.push({ x: p.x, y: p.y, content: { image: en.thumbUrl, width: 96, height: 64 }, level: 2, priority: Math.max(0, grade) + 0.5 });
   }
   for (const t of layout.themes) {
     const cs = layout.clusters.filter((c) => t.clusterIds.includes(c.id)); if (!cs.length) continue; const n = cs.reduce((a, c) => a + c.size, 0);

@@ -65,3 +65,10 @@ export function lensLabels(id: LensId, p: PointsFile, xy: { x: Float32Array; y: 
   const text = (sid: string) => ctx.questions.find((q) => q.id === sid)?.text ?? sid;
   return [...ctx.subOrder.map((sid, i) => ({ x: minX - 0.5, y: -(i + 0.4), content: text(sid), level: 0, priority: 1000 - i })), { x: minX - 0.5, y: -(ctx.subOrder.length + 0.4), content: "unassigned", level: 0, priority: 10 }];
 }
+
+/** Walk an (induced) sub-question up to its seed (direct child of core); null when unknown. */
+export function primarySeed(id: string | null, questions: { id: string; parentId: string | null }[]): string | null {
+  if (!id) return null; const byId = new Map(questions.map((q) => [q.id, q])); let cur = byId.get(id); let guard = 0;
+  while (cur && guard++ < 10) { if (cur.parentId === "core") return cur.id; if (cur.parentId === null) return null; cur = byId.get(cur.parentId); }
+  return null;
+}

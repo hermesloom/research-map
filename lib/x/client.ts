@@ -8,14 +8,14 @@ const MEDIA_FIELDS = "url,preview_image_url,type,alt_text";
 export interface FetchOpts { sinceId?: string; startTime?: string; maxPages?: number; fetchImpl?: typeof fetch; }
 
 /** One bounded timeline read. Never call without since_id or start_time: that would be a full (billed) sweep. */
-export async function fetchNewPosts(opts: FetchOpts): Promise<{ payload: XTimelinePayload; requests: number }> {
+export async function fetchNewPosts(opts: FetchOpts): Promise<{ payload: XTimelinePayload; requests: number; truncated: boolean }> {
   if (!opts.sinceId && !opts.startTime) throw new Error("fetchNewPosts requires since_id or start_time (billing guard)");
   const e = env(); const f = opts.fetchImpl ?? fetch; const maxPages = opts.maxPages ?? 5;
   const base = `https://api.x.com/2/users/${e.X_USER_ID}/tweets`;
   const merged: XTimelinePayload = { data: [], includes: { media: [] } };
   let token: string | undefined; let requests = 0;
   do {
-    const q: Record<string, string> = { max_results: "100", "tweet.fields": TWEET_FIELDS, expansions: "attachments.media_keys", "media.fields": MEDIA_FIELDS };
+    const q: Record<string, string> = { max_results: "100", exclude: "retweets", "tweet.fields": TWEET_FIELDS, expansions: "attachments.media_keys", "media.fields": MEDIA_FIELDS };
     if (opts.sinceId) q.since_id = opts.sinceId;
     if (opts.startTime) q.start_time = opts.startTime;
     if (token) q.pagination_token = token;
@@ -33,5 +33,5 @@ export async function fetchNewPosts(opts: FetchOpts): Promise<{ payload: XTimeli
     if (!merged.meta && page.meta) merged.meta = { newest_id: page.meta.newest_id };
     token = page.meta?.next_token;
   } while (token && requests < maxPages);
-  return { payload: merged, requests };
+  return { payload: merged, requests, truncated: !!token };
 }

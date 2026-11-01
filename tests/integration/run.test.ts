@@ -59,3 +59,26 @@ d("runDaily", () => {
     const w = await mod.watermark(db); const ids = payload.data.map((t: any) => BigInt(t.id)); expect(BigInt(w!)).toBe(ids.reduce((a: bigint, b: bigint) => (a > b ? a : b)));
   });
 });
+
+d("stagePlace under concurrent invocation", () => {
+  it("never appends the same xId twice even if another run placed it meanwhile", async () => {
+    const dbmod = await import("@/lib/db"); const stages = await import("@/lib/pipeline/stages");
+    const db = await dbmod.getDb(); const { layouts, items, vectors } = dbmod.collections(db);
+    for (const c of await db.collections()) await c.drop().catch(() => {}); await dbmod.ensureIndexes(db);
+    const now = new Date();
+    await items.insertMany([
+      { xId: "100", text: "a", createdAt: now, kind: "text", urls: [], media: [], isResearchQuestion: false, stage: "graded", fetchedAt: now },
+      { xId: "200", text: "b", createdAt: now, kind: "text", urls: [], media: [], isResearchQuestion: false, stage: "embedded", fetchedAt: now },
+    ] as any);
+    await vectors.insertOne({ xId: "200", embedding: [0, 1, 0], model: "m", dims: 3, inputHash: "h" });
+    await layouts.insertOne({ version: 1, createdAt: now, method: "t", status: "published", labels: [], themes: [], clusters: [], hulls: [], procrustesResidual: 0, points: [{ xId: "100", x: 0, y: 0, clusterId: 0, provisional: false }] } as any);
+    const d = { ...stages.defaultDeps(db), placeItem: async (_db: any, xId: string) => {
+      // simulate a concurrent run that already appended this point between our read and our write
+      await layouts.updateOne({ version: 1 }, { $push: { points: { xId, x: 5, y: 5, clusterId: 0, provisional: true } } });
+      return { xId, x: 1, y: 1, clusterId: 0, provisional: true };
+    } };
+    const r = await stages.stagePlace(d as any, 10); expect(r.done).toBe(1);
+    const l = await layouts.findOne({ version: 1 }); expect(l!.points.filter((p) => p.xId === "200").length).toBe(1);
+    expect((await items.findOne({ xId: "200" }))!.stage).toBe("placed");
+  });
+});

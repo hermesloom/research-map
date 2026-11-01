@@ -35,3 +35,13 @@ describe("fetchNewPosts", () => {
     expect(n).toBe(1); expect(r.payload.data ?? []).toEqual([]);
   });
 });
+
+describe("fetchNewPosts truncation + retweet exclusion", () => {
+  it("reports truncated when pages remain after maxPages and excludes retweets", async () => {
+    process.env.MONGODB_URI = "m"; process.env.OPENAI_API_KEY = "k"; process.env.X_BEARER_TOKEN = "b";
+    let calls = 0; const urls: string[] = [];
+    const fetchImpl = (async (u: string) => { calls++; urls.push(u); return new Response(JSON.stringify({ data: [{ id: String(calls), text: "x", created_at: "2026-01-01T00:00:00Z" }], meta: { next_token: "more" } })); }) as any;
+    const r = await fetchNewPosts({ sinceId: "0", maxPages: 2, fetchImpl });
+    expect(r.requests).toBe(2); expect(r.truncated).toBe(true); expect(new URL(urls[0]).searchParams.get("exclude")).toBe("retweets");
+  });
+});

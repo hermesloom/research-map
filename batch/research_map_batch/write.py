@@ -1,9 +1,15 @@
 import datetime as dt
 
 
-def assemble_layout(ids, xy, stable_labels, clusters, themes, hulls, residual, prev_version, threshold=0.10, method="umap-warm-procrustes"):
-    """Build the layout document. Publishes only if the alignment residual is within the gate; otherwise saves a draft."""
-    status = "published" if (residual is None or residual <= threshold) else "draft"
+def next_version(db):
+    """Versions are unique across drafts AND published layouts."""
+    top = db.layouts.find_one({}, sort=[("version", -1)], projection={"version": 1})
+    return (top["version"] if top else 0) + 1
+
+
+def assemble_layout(ids, xy, stable_labels, clusters, themes, hulls, residual, prev_version, threshold=0.10, method="umap-warm-procrustes", force_publish=False):
+    """Build the layout document. Publishes only if the alignment residual is within the gate (or when forced, keeping the measured residual); otherwise saves a draft."""
+    status = "published" if (force_publish or residual is None or residual <= threshold) else "draft"
     points = [{"xId": ids[i], "x": float(xy[i, 0]), "y": float(xy[i, 1]), "clusterId": int(stable_labels[i]), "provisional": False} for i in range(len(ids))]
     cl = []
     for k, c in sorted(clusters.items()):
@@ -16,7 +22,7 @@ def assemble_layout(ids, xy, stable_labels, clusters, themes, hulls, residual, p
         labels.append({"level": 0, "text": t["label"], "x": sum(c["x"] * c["size"] for c in mem) / n, "y": sum(c["y"] * c["size"] for c in mem) / n, "priority": 1000 + n, "clusterId": -1, "themeId": t["id"]})
     return {
         "version": prev_version + 1, "createdAt": dt.datetime.now(dt.UTC), "method": method, "status": status, "points": points, "labels": labels,
-        "themes": [{"id": t["id"], "label": t["label"], "clusterIds": t["clusterIds"]} for t in themes], "clusters": cl, "hulls": hulls, "procrustesResidual": residual,
+        "themes": [{"id": t["id"], "label": t["label"], "clusterIds": t["clusterIds"]} for t in themes], "clusters": cl, "hulls": hulls, "procrustesResidual": residual, "forced": bool(force_publish),
     }
 
 
@@ -25,3 +31,13 @@ def write_layout(db, layout):
     db.layouts.insert_one(layout)
     if layout["status"] == "published":
         db.items.update_many({"xId": {"$in": [p["xId"] for p in layout["points"]]}, "stage": "embedded"}, {"$set": {"stage": "placed"}})
+
+
+def promote(db, version):
+    """Approve a draft: mark it published and advance waiting items (the owner's approval path for a gated re-layout)."""
+    layout = db.layouts.find_one({"version": version})
+    if not layout or layout.get("status") != "draft":
+        return False
+    db.layouts.update_one({"version": version}, {"$set": {"status": "published"}})
+    db.items.update_many({"xId": {"$in": [p["xId"] for p in layout["points"]]}, "stage": "embedded"}, {"$set": {"stage": "placed"}})
+    return True

@@ -10,15 +10,17 @@ import { gradeItem } from "../llm/grade";
 import { placeItem } from "../place";
 import { sha256 } from "../hash";
 import { env } from "../env";
-import { mapConcurrent } from "./concurrency";
+import { mapConcurrent, fetchWithTimeout } from "./concurrency";
 
 const LLM_CONCURRENCY = 6;
 
 export interface StageDeps {
   db: Db; fetchImpl: typeof fetch; enrichUrl: typeof enrichUrl; describeImage: typeof describeImage; normalizeItem: typeof normalizeItem;
   embedTexts: typeof embedTexts; gradeItem: typeof gradeItem; placeItem: typeof placeItem; now: () => Date; log: (s: string) => void;
+  /** ms timestamp after which stages stop starting new items (resumable next run). */
+  deadline?: () => number;
 }
-export const defaultDeps = (db: Db): StageDeps => ({ db, fetchImpl: fetch, enrichUrl, describeImage, normalizeItem, embedTexts, gradeItem, placeItem, now: () => new Date(), log: console.log });
+export const defaultDeps = (db: Db): StageDeps => ({ db, fetchImpl: fetchWithTimeout(fetch, 25_000), enrichUrl, describeImage, normalizeItem, embedTexts, gradeItem, placeItem, now: () => new Date(), log: console.log });
 const ORDER: Stage[] = ["ingested", "enriched", "normalized", "embedded", "placed", "graded"];
 export const nextStage = (s: Stage): Stage | null => ORDER[ORDER.indexOf(s) + 1] ?? null;
 const EXCLUDED = ["replyToOther", "retweet"] as const;
@@ -29,6 +31,7 @@ export async function stageEnrich(d: StageDeps, limit: number) {
   await c.items.updateMany({ stage: "ingested", kind: { $in: [...EXCLUDED] } }, { $set: { stage: "graded" } });
   const todo = await c.items.find({ stage: "ingested" }).sort({ createdAt: 1 }).limit(limit).toArray();
   for (const it of todo) {
+    if (d.deadline && Date.now() > d.deadline()) break;
     try {
       let doc: Record<string, unknown> = { xId: it.xId, source: "none", thin: true, needsContent: false, fetchedAt: d.now() };
       const url = it.urls.find((u) => !u.isMedia && !/^(x|twitter)\.com$/.test(u.domain))?.expandedUrl;
@@ -39,8 +42,10 @@ export async function stageEnrich(d: StageDeps, limit: number) {
         doc = { ...doc, source: f.source, title: f.title, excerpt: f.excerpt, ogImage: f.ogImage, thin: f.thin };
       }
       if (img) {
-        const v = await d.describeImage(img);
-        doc = { ...doc, transcript: v.vision.transcript, imageDescription: v.vision.description, title: (doc.title as string | undefined) ?? v.vision.title, thumbUrl: v.thumbUrl, originalMediaUrl: v.originalMediaUrl, thin: false };
+        try {
+          const v = await d.describeImage(img);
+          doc = { ...doc, transcript: v.vision.transcript, imageDescription: v.vision.description, title: (doc.title as string | undefined) ?? v.vision.title, thumbUrl: v.thumbUrl, originalMediaUrl: v.originalMediaUrl, thin: false };
+        } catch (e) { doc = { ...doc, imageError: String(e).slice(0, 200) }; }   // a dead/forbidden media URL must not block the post forever: continue with text only
       }
       await c.enrichment.updateOne({ xId: it.xId }, { $set: doc }, { upsert: true });
       await c.items.updateOne({ xId: it.xId }, { $set: { stage: "enriched" }, $unset: { stageError: "" } }); out.done++;
@@ -61,7 +66,7 @@ export async function stageNormalize(d: StageDeps, limit: number) {
       await c.enrichment.updateOne({ xId: it.xId }, { $set: { normalized: n, needsContent: false } }, { upsert: true });
       await c.items.updateOne({ xId: it.xId }, { $set: { stage: "normalized" }, $unset: { stageError: "" } }); out.done++;
     } catch (e) { out.errors++; await c.items.updateOne({ xId: it.xId }, { $set: { stageError: `normalize: ${String(e).slice(0, 300)}` } }); }
-  });
+  }, { deadline: d.deadline });
   return out;
 }
 
@@ -86,11 +91,13 @@ export async function stagePlace(d: StageDeps, limit: number) {
   const todo = await c.items.find({ stage: "embedded" }).sort({ createdAt: 1 }).limit(limit).toArray(); let done = 0;
   const have = new Set(layout.points.map((p) => p.xId));
   for (const it of todo) {
+    if (d.deadline && Date.now() > d.deadline()) break;
     if (!have.has(it.xId)) {
       if (layout.points.length === 0) break; // nothing to snap to; wait for the batch job
       const v = await c.vectors.findOne({ xId: it.xId }); if (!v) continue;
       const p = await d.placeItem(d.db, it.xId, v.embedding, layout);
-      await c.layouts.updateOne({ version: layout.version }, { $push: { points: p } }); layout.points.push(p); have.add(p.xId);
+      await c.layouts.updateOne({ version: layout.version, "points.xId": { $ne: p.xId } }, { $push: { points: p } });   // no-op if a concurrent run already placed it
+      layout.points.push(p); have.add(p.xId);
     }
     await c.items.updateOne({ xId: it.xId }, { $set: { stage: "placed" } }); done++;
   }
@@ -100,7 +107,7 @@ export async function stagePlace(d: StageDeps, limit: number) {
 /** placed → graded. The research-question post is never graded. */
 export async function stageGrade(d: StageDeps, limit: number) {
   const c = collections(d.db); const questions = await c.questions.find({ validTo: null }).toArray();
-  const todo = await c.items.find({ stage: "placed" }).sort({ createdAt: 1 }).limit(limit).toArray(); let done = 0;
+  const todo = await c.items.find({ stage: "placed" }).sort({ createdAt: 1 }).limit(limit).toArray(); let done = 0, errors = 0;
   await mapConcurrent(todo, LLM_CONCURRENCY, async (it) => {
     try {
       if (!it.isResearchQuestion) {
@@ -111,7 +118,7 @@ export async function stageGrade(d: StageDeps, limit: number) {
         }
       }
       await c.items.updateOne({ xId: it.xId }, { $set: { stage: "graded" }, $unset: { stageError: "" } }); done++;
-    } catch (e) { await c.items.updateOne({ xId: it.xId }, { $set: { stageError: `grade: ${String(e).slice(0, 300)}` } }); }
-  });
-  return { done };
+    } catch (e) { errors++; await c.items.updateOne({ xId: it.xId }, { $set: { stageError: `grade: ${String(e).slice(0, 300)}` } }); }
+  }, { deadline: d.deadline });
+  return { done, errors };
 }

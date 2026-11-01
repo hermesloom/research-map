@@ -12,3 +12,12 @@ describe("colors", () => {
     expect(Array.from(visibleMask(p, 0, true, { kinds: new Set([1]) }, null))).toEqual([0, 0, 1]);
   });
 });
+
+describe("ungraded (-1) handling", () => {
+  it("is coloured like grade 1 and shown at the default threshold, hidden above it", () => {
+    expect(categoryIndex(0, -1)).toBe(categoryIndex(0, 1));
+    const p: any = { count: 2, grade: [-1, 2], leaf: [0, 0], kind: [0, 0], createdAt: [0, 0] };
+    expect(Array.from(visibleMask(p, 1, false, {}, null))).toEqual([1, 1]);
+    expect(Array.from(visibleMask(p, 2, false, {}, null))).toEqual([0, 1]);
+  });
+});

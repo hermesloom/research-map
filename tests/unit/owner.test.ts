@@ -16,3 +16,19 @@ describe("owner auth", () => {
     expect((await POST(new Request("http://x", { method: "POST", headers: { cookie }, body: JSON.stringify({ type: "pin", xId: "1", payload: { x: 1, y: 2 } }) }))).status).toBe(200);
   });
 });
+
+describe("override payload validation and undo", () => {
+  it("rejects a pin without numeric x/y and a rename without a label; accepts valid ones", async () => {
+    const inserted: any[] = [];
+    vi.doMock("@/lib/db", () => ({ getDb: async () => ({}), collections: () => ({ overrides: { insertOne: async (d: any) => { inserted.push(d); return { insertedId: "oid" }; }, find: () => ({ sort: () => ({ limit: () => ({ toArray: async () => inserted.slice(-1) }) }) }), deleteOne: async () => ({ deletedCount: 1 }) }, questions: { updateOne: async () => ({}) } }) }));
+    vi.doMock("@/lib/publish", () => ({ publishSnapshot: async () => ({ count: 1 }) }));
+    const { POST, DELETE } = await import("@/app/api/owner/override/route"); const { ownerCookieValue } = await import("@/lib/ownerAuth");
+    const cookie = `rm_owner=${ownerCookieValue("owner-pw")}`; const post = (b: unknown) => POST(new Request("http://x", { method: "POST", headers: { cookie }, body: JSON.stringify(b) }));
+    expect((await post({ type: "pin", xId: "1", payload: { x: "abc", y: 2 } })).status).toBe(400);
+    expect((await post({ type: "renameLabel", clusterId: 0, payload: {} })).status).toBe(400);
+    expect((await post({ type: "moveLeaf", xId: "1", payload: { clusterId: 1.5 } })).status).toBe(400);
+    expect((await post({ type: "pin", xId: "1", payload: { x: 1, y: 2 } })).status).toBe(200);
+    expect((await DELETE(new Request("http://x", { method: "DELETE", headers: { cookie } }))).status).toBe(200);   // undo last
+    expect((await DELETE(new Request("http://x", { method: "DELETE" }))).status).toBe(401);
+  });
+});

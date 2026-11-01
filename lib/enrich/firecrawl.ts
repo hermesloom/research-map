@@ -1,5 +1,7 @@
 import type { Adapter } from "./types";
 export class QuotaExhausted extends Error {}
+/** 429 / 5xx / network failure: retry on a later run instead of caching a thin record forever. */
+export class Transient extends Error {}
 export const fetchFirecrawl: Adapter = async (url, ctx) => {
   if (!ctx.firecrawlKey) return null;
   const res = await ctx.fetchImpl("https://api.firecrawl.dev/v2/scrape", {
@@ -7,6 +9,7 @@ export const fetchFirecrawl: Adapter = async (url, ctx) => {
     body: JSON.stringify({ url, formats: ["markdown", "summary"], onlyMainContent: true, parsers: [{ type: "pdf", maxPages: 5 }] }),
   });
   if (res.status === 402) throw new QuotaExhausted("firecrawl credits exhausted");
+  if (res.status === 429 || res.status >= 500) throw new Transient(`firecrawl ${res.status}`);
   if (!res.ok) return null;
   const j = (await res.json()) as { success?: boolean; data?: { markdown?: string; summary?: string; metadata?: { title?: string; description?: string; ogImage?: string; language?: string; statusCode?: number } } };
   const d = j.data; if (!j.success || !d) return null;

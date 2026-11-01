@@ -34,6 +34,7 @@ export default function OwnerControls({ snap, xId }: { snap: Snapshot; xId: stri
           <option value="">Retire sub-question…</option>{snap.labels.questions.filter((q) => q.parentId).map((q) => <option key={q.id} value={q.id}>{q.text}</option>)}
         </select>
       </div>
+      <div className="row small"><button onClick={async () => { setMsg("undoing…"); const r = await fetch("/api/owner/override", { method: "DELETE" }); const j = r.ok ? await r.json() : null; setMsg(j?.undone ? `undid ${j.undone} — republished; reload to see it` : r.ok ? "nothing to undo" : `failed: ${r.status}`); }}>Undo last override</button></div>
       <div className="dim small">{msg}</div>
     </div>
   );

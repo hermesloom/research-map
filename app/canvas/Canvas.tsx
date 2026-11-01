@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EmbeddingView, type ViewportState } from "embedding-atlas/react";
 import { useSnapshot } from "./useSnapshot";
-import { lensXY, lensLabels, tween } from "./lenses";
+import { lensXY, lensLabels, primarySeed, tween } from "./lenses";
 import { categoryColors, categoryIndex, visibleMask } from "./colors";
 import { parseUrlState, serializeUrlState, type UrlState } from "./urlState";
 import { probeWebGPU } from "./webgpu";
@@ -28,6 +28,7 @@ export default function Canvas() {
   const host = useRef<HTMLDivElement>(null);
   const [gpu, setGpu] = useState<boolean | null>(null);
   useEffect(() => { probeWebGPU().then(setGpu); }, []);
+  useEffect(() => { if (url.lens === "time" && snap && !snap.meta) void loadMeta(); }, [url.lens, snap, loadMeta]);   // the time lens needs sub-question attachments
   useEffect(() => { const el = host.current; if (!el) return; const ro = new ResizeObserver(([e]) => setSize({ w: Math.round(e.contentRect.width), h: Math.round(e.contentRect.height) })); ro.observe(el); return () => ro.disconnect(); }, []);
 
   // Throttled consumers of viewport changes: URL sync and the density/points switch. Never re-render per pan frame.
@@ -47,7 +48,7 @@ export default function Canvas() {
 
   const ctx = useMemo(() => snap ? {
     centerId: CENTER_ID,
-    primarySub: snap.points.ids.map((_, i) => snap.meta?.subQuestions[i]?.[0] ?? null),
+    primarySub: snap.points.ids.map((_, i) => primarySeed(snap.meta?.subQuestions[i]?.[0] ?? null, snap.labels.questions)),
     subOrder: snap.labels.questions.filter((q) => q.parentId === "core").map((q) => q.id),
   } : null, [snap]);
   const mask = useMemo(() => snap ? visibleMask(snap.points, url.minGrade, url.showAll, filters, snap.meta) : null, [snap, url.minGrade, url.showAll, filters]);
@@ -96,7 +97,7 @@ export default function Canvas() {
       viewportState={flyViewport} onViewportState={onViewport} customOverlay={overlay} />
   );
   else body = (
-    <CanvasFallback data={data} labels={labels} snap={snap} viewport={flyViewport} onViewport={onViewport}
+    <CanvasFallback data={data} labels={labels} snap={snap} viewport={flyViewport} onViewport={onViewport} width={size.w} height={size.h}
       onPick={(row) => select(snap.points.ids[data.idx[row]])} />
   );
   return (
