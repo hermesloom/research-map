@@ -25,8 +25,8 @@ export class MapEngine {
   private data: EngineData | null = null; private from: Float32Array | null = null; private to: Float32Array | null = null; private cur: Float32Array | null = null; private curX: Float32Array | null = null; private curY: Float32Array | null = null;
   private tweenT0 = -1; private tweenT = 1;
   private labelsIn: LabelIn[] = []; private labelsDirty = true; private camDirty = true; private lastCamMove = 0; private spacingPx = Infinity;
-  private wantedKey: string | null = null; private selected = -1;
-  private dirty = true; private overlayDirty = true; private raf = 0; private destroyed = false; private lost = false;
+  private wantedKey: string | null = null; private selected = -1; private fitAnchors: { x: number; y: number }[] = []; private fitFill = 0.85;
+  private dirty = true; private raf = 0; private destroyed = false; private lost = false;
   private drawCalls = 0; private frameMs: number[] = [];
 
   constructor(private glCanvas: HTMLCanvasElement, overlayCanvas: HTMLCanvasElement, private opts: EngineOpts = {}) {
@@ -53,17 +53,17 @@ export class MapEngine {
   resize(w: number, h: number, dpr: number) {
     this.vp = { w, h }; this.dpr = dpr; this.glDpr = Math.min(dpr, 2);
     this.glCanvas.width = Math.max(1, Math.round(w * this.glDpr)); this.glCanvas.height = Math.max(1, Math.round(h * this.glDpr)); this.glCanvas.style.width = `${w}px`; this.glCanvas.style.height = `${h}px`;
-    this.overlay.resize(w, h, dpr); this.dirty = true; this.overlayDirty = true; this.camDirty = true;
+    this.overlay.resize(w, h, dpr); this.dirty = true; this.camDirty = true;
   }
-  /** New rows (colours and, when the row count changes, positions). Positions are kept when the count matches so a following setTarget can animate. */
-  setData(d: EngineData, initialCamera?: Camera | null) {
-    const first = !this.data; const n = d.x.length; this.data = d;
-    if (!this.from || this.from.length !== n * 2) {
+  /** New rows (colours and positions). Positions are kept when the row set is unchanged so a following setTarget can animate; `snap` (row set changed) or a different count replaces them. */
+  setData(d: EngineData, initialCamera?: Camera | null, opts: { snap?: boolean; fitAnchors?: { x: number; y: number }[]; fitFill?: number } = {}) {
+    const first = !this.data; const n = d.x.length; this.data = d; if (opts.fitAnchors) this.fitAnchors = opts.fitAnchors; if (opts.fitFill) this.fitFill = opts.fitFill;
+    if (!this.from || this.from.length !== n * 2 || opts.snap) {
       this.from = PointLayer.interleave(d.x, d.y); this.to = PointLayer.interleave(d.x, d.y); this.cur = new Float32Array(n * 2); this.curX = Float32Array.from(d.x); this.curY = Float32Array.from(d.y); this.tweenT0 = -1; this.tweenT = 1;
       this.points?.setFrom(this.from); this.points?.setTo(this.to);
     }
     this.points?.setColors(d.rgba);
-    if (first) { const fit = fitCameraTo(d.x, d.y, [], this.vp, 0.85); this.fitScale = fit.scale; this.setCamera(initialCamera ?? fit); }
+    if (first) { const fit = fitCameraTo(d.x, d.y, this.fitAnchors, this.vp, this.fitFill); this.fitScale = fit.scale; this.setCamera(initialCamera ?? fit); }
     this.labelsDirty = true; this.dirty = true;
   }
   /** Animate every row from where it is now to (x, y) over 600 ms (GPU). */
@@ -73,25 +73,28 @@ export class MapEngine {
       const now = performance.now(); this.syncCur(now); this.from.set(this.cur); PointLayer.interleave(x, y, this.to); this.tweenT0 = now; this.tweenT = 0;
       this.points?.setFrom(this.from); this.points?.setTo(this.to);
     }
-    if (opts.refit) { const fit = fitCameraTo(x, y, opts.fitAnchors ?? [], this.vp, opts.fitFill ?? 0.85); this.fitScale = fit.scale; this.setCamera(fit); }
+    if (opts.fitAnchors) this.fitAnchors = opts.fitAnchors; if (opts.fitFill) this.fitFill = opts.fitFill;
+    if (opts.refit) { const fit = fitCameraTo(x, y, this.fitAnchors, this.vp, this.fitFill); this.fitScale = fit.scale; this.setCamera(fit); }
     this.labelsDirty = true; this.dirty = true;
   }
   /** Ask for the terrain of this key; when it arrives (or is cached) it crossfades in over the current one. */
   setTerrain(key: string, input: TerrainInput) {
     if (this.wantedKey === key) return; this.wantedKey = key;
     if (this.layers.some((L) => L.key === key && !L.out)) return;
+    if (!this.service.has(key)) { const now = performance.now(); for (const L of this.layers) if (!L.out) { L.out = true; L.t0 = now; } this.dirty = true; }   // the old terrain no longer matches: fade it out now, not when the new one arrives
     this.service.request(key, input, (k, mesh) => { if (this.destroyed || k !== this.wantedKey) return; this.showTerrain(k, mesh); });
   }
   private showTerrain(key: string, mesh: TerrainMesh) {
     const now = performance.now();
-    for (const L of this.layers) if (!L.out) { L.out = true; L.t0 = now; }
+    this.layers = this.layers.filter((L) => { if (L.out) { L.layer?.dispose(); return false; } return true; });   // at most one outgoing + one incoming layer
+    for (const L of this.layers) { L.out = true; L.t0 = now; }
     this.layers.push({ key, mesh, layer: this.P ? new TerrainLayer(this.P, mesh) : null, t0: now, out: false }); this.dirty = true;
   }
   setLabels(l: LabelIn[]) { this.labelsIn = l; this.labelsDirty = true; }
   setSelected(row: number) { this.selected = row; this.dirty = true; }
   setCamera(c: Camera) { this.cam = this.fitScale > 0 ? { ...c, scale: clampScale(c.scale, this.fitScale) } : c; this.dirty = true; this.camDirty = true; this.lastCamMove = performance.now(); this.opts.onCamera?.(this.cam); }
   flyTo(x: number, y: number, scale?: number) { this.setCamera({ x, y, scale: scale ?? Math.max(this.cam.scale, this.fitScale * 10) }); }
-  fit() { if (this.curX && this.curY) this.setCamera(fitCameraTo(this.curX, this.curY, [], this.vp, 0.85)); }
+  fit() { if (this.curX && this.curY) this.setCamera(fitCameraTo(this.curX, this.curY, this.fitAnchors, this.vp, this.fitFill)); }
   stats(): EngineStats { const cur = this.layers.find((L) => !L.out); return { mode: this.mode, drawCalls: this.drawCalls, frameMs: this.frameMs.slice(), terrain: cur ? cur.mesh.stats : null, labels: this.overlay.labels().length, points: this.curX?.length ?? 0, spacingPx: this.spacingPx }; }
   placedLabels() { return this.overlay.labels(); }
   /** Test hook: draw now and read one device pixel (CSS coordinates). */
@@ -111,7 +114,7 @@ export class MapEngine {
   }
   private view(): View { return { view: [this.cam.x, this.cam.y, (2 * this.cam.scale) / this.vp.w, (2 * this.cam.scale) / this.vp.h], res: [this.vp.w, this.vp.h], dpr: this.glDpr }; }
   private loop = () => {
-    if (this.destroyed) return; this.raf = requestAnimationFrame(this.loop); const now = performance.now();
+    if (this.destroyed) return; this.raf = requestAnimationFrame(this.loop); const now = performance.now(); const t0 = now; let worked = false;
     const tweening = this.tweenT0 >= 0; if (tweening) { this.syncCur(now); this.dirty = true; this.labelsDirty = true; }
     if (this.layers.some((L) => L.out || now - L.t0 < CROSSFADE_MS)) this.dirty = true;
     // labels: placement cadence, then fades
@@ -119,10 +122,11 @@ export class MapEngine {
     if (this.curX && this.curY && needsPlacement({ cameraChanged: this.camDirty, inputsChanged: this.labelsDirty, settled, sinceLast: now - this.overlay.lastPlaced })) {
       this.spacingPx = this.overlay.spacing(this.cam, this.curX, this.curY);
       const cx = this.curX, cy = this.curY; this.overlay.place(this.labelsIn, this.cam, this.spacingPx, (l) => (l.row !== undefined && l.row < cx.length ? { x: cx[l.row], y: cy[l.row] } : l), now);
-      this.camDirty = false; this.labelsDirty = false; this.overlayDirty = true; this.dirty = true;
-    } else if (this.overlay.animating) { this.overlay.tick(now); this.overlayDirty = true; }
+      this.camDirty = false; this.labelsDirty = false; this.dirty = true; worked = true;
+    } else if (this.overlay.animating) { this.overlay.tick(now); this.dirty = true; }
     if (!this.dirty) return; this.dirty = false;
-    const t0 = performance.now(); if (this.gl && !this.lost) this.drawGL(now); this.drawOverlay(now); const ms = performance.now() - t0; this.frameMs.push(ms); if (this.frameMs.length > 120) this.frameMs.shift();
+    if (this.gl && !this.lost) this.drawGL(now); this.drawOverlay(now); worked = true;
+    if (worked) { const ms = performance.now() - t0; this.frameMs.push(ms); if (this.frameMs.length > 120) this.frameMs.shift(); }   // whole main-thread cost of the frame, placement included
   }
   private drawGL(now: number) {
     const gl = this.gl!, v = this.view(); let calls = 0; gl.viewport(0, 0, this.glCanvas.width, this.glCanvas.height); gl.clearColor(BG[0], BG[1], BG[2], 1); gl.clear(gl.COLOR_BUFFER_BIT);
@@ -136,7 +140,7 @@ export class MapEngine {
   private drawOverlay(now: number) {
     void now; const r = pointRadius(this.cam.scale / (this.fitScale || 1));
     const pts = this.mode === "overlay-only" && this.curX && this.curY && this.data ? { x: this.curX, y: this.curY, rgba: this.data.rgba, radius: r, cam: this.cam, selected: this.selected } : undefined;
-    this.overlay.draw({ pointCount: this.curX?.length ?? 0, unitPx: this.cam.scale, notice: this.mode === "overlay-only" ? "terrain needs WebGL2" : undefined, points: pts }); this.overlayDirty = false;
+    this.overlay.draw(this.cam, { pointCount: this.curX?.length ?? 0, unitPx: this.cam.scale, notice: this.mode === "overlay-only" ? "terrain needs WebGL2" : undefined, points: pts });
   }
   /** Current (tweened) position of a row, for tests and fly-to. */
   pointAt(row: number): { x: number; y: number } | null { if (!this.curX || !this.curY || row < 0 || row >= this.curX.length) return null; this.syncCur(performance.now()); return { x: this.curX[row], y: this.curY[row] }; }

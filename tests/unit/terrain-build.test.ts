@@ -67,3 +67,23 @@ describe("mass-based levels", () => {
     expect(redAlphas.size).toBeGreaterThanOrEqual(3);
   });
 });
+
+describe("review fixes", () => {
+  it("terrain is not shifted: for a symmetric lattice of points the innermost region is centred on the lattice centre (a half-cell error would show)", () => {
+    const xs: number[] = [], ys: number[] = []; for (let i = -2; i <= 2; i++) for (let j = -2; j <= 2; j++) { xs.push(2 + i * 0.1); ys.push(1 + j * 0.1); }
+    const m = buildTerrain({ x: Float32Array.from(xs), y: Float32Array.from(ys), cat: Uint16Array.from(Array(25).fill(1)), catRGB: [[0, 0, 0], [255, 0, 0]], sigmaUnits: 0.3 });
+    const top = Math.max(...Array.from(m.colors.filter((_, i) => i % 4 === 3))); let sx = 0, sy = 0, A = 0;   // area-weighted centroid of the innermost region's triangles
+    for (let t = 0; t < m.indices.length; t += 3) { const [i0, i1, i2] = [m.indices[t], m.indices[t + 1], m.indices[t + 2]]; if (m.colors[4 * i0 + 3] !== top) continue; const P = (i: number) => [m.positions[2 * i], m.positions[2 * i + 1]]; const [a, b, c] = [P(i0), P(i1), P(i2)]; const ar = Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1])) / 2; sx += (ar * (a[0] + b[0] + c[0])) / 3; sy += (ar * (a[1] + b[1] + c[1])) / 3; A += ar; }
+    const cell = 0.3 / 12; expect(A).toBeGreaterThan(0); expect(Math.abs(sx / A - 2)).toBeLessThan(cell * 0.1); expect(Math.abs(sy / A - 1)).toBeLessThan(cell * 0.1);
+  });
+  it("contour lines follow density levels only: no line segments run along the seam between two touching categories", () => {
+    const a = gauss(300, 0, 0, 0.3, 11), b = gauss(300, 0.6, 0, 0.3, 12);
+    const m = buildTerrain({ x: Float32Array.from([...a.x, ...b.x]), y: Float32Array.from([...a.y, ...b.y]), cat: Uint16Array.from([...Array(300).fill(1), ...Array(300).fill(2)]), catRGB: [[0, 0, 0], [255, 0, 0], [0, 0, 255]] });
+    let onSeam = 0, total = 0;
+    for (let s = 0; s < m.segmentCount; s++) { const mx = (m.lines[4 * s] + m.lines[4 * s + 2]) / 2, my = (m.lines[4 * s + 1] + m.lines[4 * s + 3]) / 2; total++; if (Math.abs(mx - 0.3) < 0.03 && Math.abs(my) < 0.15) onSeam++; }
+    expect(total).toBeGreaterThan(50); expect(onSeam).toBeLessThan(total * 0.01);
+  });
+  it("duplicate mass levels are skipped instead of stacking the same region twice", async () => {
+    const { dedupeLevels } = await import("@/app/canvas/terrain/build"); expect(dedupeLevels([1, 2, 2, 3, 3, 3])).toEqual([1, 2, 3]);
+  });
+});

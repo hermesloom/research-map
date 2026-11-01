@@ -51,6 +51,7 @@ export default function Canvas() {
   const terrain = useMemo(() => (data && idx ? { key: terrainKey(url.lens, idx, data.x, data.y), input: { x: data.x, y: data.y, cat: data.cat, catRGB: data.catRGB } } : null), [data, idx, url.lens]);
   const labels = useMemo(() => (snap && lensPos && ctx && idx ? lensLabels(url.lens, snap.points, lensPos, { questions: snap.labels.questions, subOrder: ctx.subOrder, terrainLabels: snap.labels.labels }, idx) : []), [snap, lensPos, url.lens, ctx, idx]);
   const fitAnchors = useMemo(() => lensAnchors(labels), [labels]);
+  const rowsKey = useMemo(() => (idx ? terrainKey("rows", idx, new Float32Array(0), new Float32Array(0)) : ""), [idx]);
   const selectedRow = useMemo(() => (snap && idx && url.sel ? idx.indexOf(snap.points.ids.indexOf(url.sel)) : -1), [snap, idx, url.sel]);
 
   const select = useCallback((xId: string) => { setUrl((u) => ({ ...u, sel: xId })); void loadMeta(); }, [loadMeta]);
@@ -61,7 +62,7 @@ export default function Canvas() {
     <div style={{ position: "fixed", inset: 0 }}>
       {error && <div style={{ padding: 24 }}>Could not load the map: {error}</div>}
       {!error && !snap && <div style={{ padding: 24 }}>Loading map…</div>}
-      {snap && <MapView ref={map} data={data} target={target} lens={url.lens} labels={labels} fitAnchors={fitAnchors} terrain={terrain} selectedRow={selectedRow} initialCamera={initialCamera} onCamera={onCamera} onPick={onPick} />}
+      {snap && <MapView ref={map} data={data} rowsKey={rowsKey} target={target} lens={url.lens} labels={labels} fitAnchors={fitAnchors} terrain={terrain} selectedRow={selectedRow} initialCamera={initialCamera} onCamera={onCamera} onPick={onPick} />}
       {snap && <TopBar url={url} setUrl={setUrl} snap={snap} onFlyTo={flyTo} />}
       {snap && <Filters snap={snap} filters={filters} setFilters={setFilters} url={url} setUrl={setUrl} loadMeta={loadMeta} />}
       {snap && url.sel && <Inspector snap={snap} xId={url.sel} onClose={() => setUrl((u) => ({ ...u, sel: undefined }))} loadMeta={loadMeta} />}

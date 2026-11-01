@@ -7,7 +7,7 @@ function fakeElement() {
   return {
     style, addEventListener: (t: string, h: Handler) => { listeners.set(t, [...(listeners.get(t) ?? []), h]); }, removeEventListener: (t: string, h: Handler) => { listeners.set(t, (listeners.get(t) ?? []).filter((x) => x !== h)); },
     setPointerCapture: () => {}, releasePointerCapture: () => {},
-    fire: (t: string, e: Record<string, unknown>) => { for (const h of listeners.get(t) ?? []) h({ preventDefault() {}, ...e }); }, count: (t: string) => (listeners.get(t) ?? []).length,
+    fire: (t: string, e: Record<string, unknown>) => { for (const h of listeners.get(t) ?? []) h({ type: t, preventDefault() {}, ...e }); }, count: (t: string) => (listeners.get(t) ?? []).length,
   };
 }
 describe("Interaction", () => {
@@ -32,5 +32,20 @@ describe("Interaction", () => {
   it("destroy removes every listener", () => {
     const el = fakeElement(); const i = new Interaction(el as never, { pan: vi.fn(), zoomAt: vi.fn(), click: vi.fn() }); i.destroy();
     for (const t of ["pointerdown", "pointermove", "pointerup", "pointercancel", "wheel", "dblclick"]) expect(el.count(t)).toBe(0);
+  });
+});
+
+describe("Interaction edge cases", () => {
+  it("a slow drag made of many sub-3 px moves is still a drag, not a click", () => {
+    const el = fakeElement(); const click = vi.fn(), pan = vi.fn(); new Interaction(el as never, { pan, zoomAt: vi.fn(), click });
+    el.fire("pointerdown", { pointerId: 1, offsetX: 100, offsetY: 100 }); for (let i = 1; i <= 10; i++) el.fire("pointermove", { pointerId: 1, offsetX: 100 + i * 2, offsetY: 100 }); el.fire("pointerup", { pointerId: 1, offsetX: 120, offsetY: 100 });
+    expect(click).not.toHaveBeenCalled(); expect(pan).toHaveBeenCalledTimes(10);
+  });
+  it("after a pinch ends, the remaining finger pans; pointercancel never clicks", () => {
+    const el = fakeElement(); const click = vi.fn(), pan = vi.fn(); new Interaction(el as never, { pan, zoomAt: vi.fn(), click });
+    el.fire("pointerdown", { pointerId: 1, offsetX: 100, offsetY: 100 }); el.fire("pointerdown", { pointerId: 2, offsetX: 200, offsetY: 100 }); el.fire("pointerup", { pointerId: 2, offsetX: 200, offsetY: 100 });
+    el.fire("pointermove", { pointerId: 1, offsetX: 130, offsetY: 100 }); expect(pan).toHaveBeenCalledWith(30, 0);
+    el.fire("pointercancel", { pointerId: 1, offsetX: 130, offsetY: 100 }); expect(click).not.toHaveBeenCalled();
+    el.fire("pointerdown", { pointerId: 3, offsetX: 10, offsetY: 10 }); el.fire("pointercancel", { pointerId: 3, offsetX: 10, offsetY: 10 }); expect(click).not.toHaveBeenCalled();
   });
 });

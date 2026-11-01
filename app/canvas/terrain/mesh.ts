@@ -17,10 +17,10 @@ export function appendBand(acc: MeshAccumulator, poly: BandPolygon, toData: ToDa
   for (let i = 0; i < flat.length; i += 2) { acc.positions.push(flat[i], flat[i + 1]); acc.colors.push(c[0], c[1], c[2], c[3]); }
   for (const ix of tri) acc.indices.push(base + ix);
 }
-/** One line segment per ring edge; outer rings heavier and more opaque than inner ones. */
-export function appendRingLines(acc: MeshAccumulator, ring: Ring, toData: ToData, rgb: RGB, outer: boolean): void {
+/** One line segment per ring edge (optionally only the edges `keep` accepts, e.g. density boundaries but not category seams); outer rings heavier and more opaque than inner ones. */
+export function appendRingLines(acc: MeshAccumulator, ring: Ring, toData: ToData, rgb: RGB, outer: boolean, keep?: (p: [number, number], q: [number, number]) => boolean): void {
   const st = outer ? LINE_OUTER : LINE_INNER; const a = Math.round(255 * st.alpha);
-  for (let i = 0; i < ring.length - 1; i++) { const [ax, ay] = toData(ring[i]), [bx, by] = toData(ring[i + 1]); if (ax === bx && ay === by) continue; acc.lines.push(ax, ay, bx, by); acc.lineColors.push(rgb[0], rgb[1], rgb[2], a); acc.lineWidths.push(st.width); }
+  for (let i = 0; i < ring.length - 1; i++) { if (keep && !keep(ring[i], ring[i + 1])) continue; const [ax, ay] = toData(ring[i]), [bx, by] = toData(ring[i + 1]); if (ax === bx && ay === by) continue; acc.lines.push(ax, ay, bx, by); acc.lineColors.push(rgb[0], rgb[1], rgb[2], a); acc.lineWidths.push(st.width); }
 }
 export function finalize(acc: MeshAccumulator, stats: Omit<TerrainStats, "triangles" | "segments">): TerrainMesh {
   const triCount = acc.indices.length / 3, segmentCount = acc.lines.length / 4;

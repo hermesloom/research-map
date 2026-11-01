@@ -8,7 +8,7 @@ export class Programs {
   constructor(public gl: GL) {
     this.terrain = buildProgram(gl, TERRAIN_VS, TERRAIN_FS, ["a_pos", "a_rgba"], ["u_view", "u_alpha"]);
     this.line = buildProgram(gl, LINE_VS, LINE_FS, ["a_corner", "a_a", "a_b", "a_rgba", "a_w"], ["u_view", "u_res", "u_dpr", "u_alpha"]);
-    this.point = buildProgram(gl, POINT_VS, POINT_FS, ["a_corner", "a_from", "a_to", "a_rgba"], ["u_view", "u_res", "u_dpr", "u_t", "u_r", "u_ring"]);
+    this.point = buildProgram(gl, POINT_VS, POINT_FS, ["a_corner", "a_from", "a_to", "a_rgba"], ["u_view", "u_res", "u_dpr", "u_t", "u_r", "u_ring", "u_ringColor"]);
     this.lineQuad = buffer(gl, gl.ARRAY_BUFFER, new Float32Array([0, -1, 1, -1, 1, 1, 0, -1, 1, 1, 0, 1]));
     this.pointQuad = buffer(gl, gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, 1, 1, -1, -1, 1, 1, -1, 1]));
   }
@@ -69,7 +69,7 @@ export class PointLayer {
   }
   drawRing(v: View, t: number, row: number, radius: number): number {
     if (row < 0 || row >= this.count) return 0; const gl = this.P.gl, p = this.P.point; this.bind(this.ringVao, row);
-    gl.useProgram(p.prog); gl.uniform4fv(p.uni.u_view, v.view); gl.uniform2fv(p.uni.u_res, v.res); gl.uniform1f(p.uni.u_dpr, v.dpr); gl.uniform1f(p.uni.u_t, t); gl.uniform1f(p.uni.u_r, radius + 9); gl.uniform1f(p.uni.u_ring, 1);
+    gl.useProgram(p.prog); gl.uniform4fv(p.uni.u_view, v.view); gl.uniform2fv(p.uni.u_res, v.res); gl.uniform1f(p.uni.u_dpr, v.dpr); gl.uniform1f(p.uni.u_t, t); gl.uniform1f(p.uni.u_r, radius + 9); gl.uniform1f(p.uni.u_ring, 1); gl.uniform4f(p.uni.u_ringColor, 156 / 255, 196 / 255, 1, 1);
     gl.bindVertexArray(this.ringVao); gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, 1); gl.bindVertexArray(null); return 1;
   }
   dispose() { const gl = this.P.gl; gl.deleteVertexArray(this.vao); gl.deleteVertexArray(this.ringVao); gl.deleteBuffer(this.fromBuf); gl.deleteBuffer(this.toBuf); gl.deleteBuffer(this.colBuf); }

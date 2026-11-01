@@ -4,7 +4,7 @@ test.use({ viewport: { width: 1200, height: 800 }, launchOptions: { args: GL_ARG
 
 test("main-thread frame cost stays small while zooming and panning (software GL)", async ({ page }) => {
   await page.goto("/?g=0"); await expect(page.locator("canvas").first()).toBeVisible({ timeout: 30000 });
-  await page.waitForFunction(() => window.__map?.stats().terrain !== null, null, { timeout: 30000 }); await page.waitForTimeout(700);
+  await page.waitForFunction(() => !!window.__map && window.__map.stats().terrain !== null, null, { timeout: 30000 }); await page.waitForTimeout(700);
   const box = (await page.locator("canvas").first().boundingBox())!; const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
   await page.mouse.move(cx, cy); for (let i = 0; i < 25; i++) { await page.mouse.wheel(0, -120); await page.waitForTimeout(40); }
   await page.mouse.down(); for (let i = 0; i < 25; i++) { await page.mouse.move(cx + i * 12, cy + i * 6); await page.waitForTimeout(30); } await page.mouse.up();

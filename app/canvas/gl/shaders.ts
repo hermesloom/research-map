@@ -19,7 +19,8 @@ void main() {
   vec2 A = (a_a - u_view.xy) * u_view.zw * h; vec2 B = (a_b - u_view.xy) * u_view.zw * h;
   vec2 d = B - A; float len = max(length(d), 1e-6); vec2 dir = d / len; vec2 n = vec2(-dir.y, dir.x);
   float wDev = a_w * u_dpr; float halfDev = max(wDev, 1.0) * 0.5; float ext = (halfDev + 1.0) / u_dpr;
-  vec2 P = A + dir * (a_corner.x * len + (a_corner.x * 2.0 - 1.0) * ext * 0.5) + n * (a_corner.y * ext);
+  float cap = 0.5 / u_dpr;   // half a device pixel of cap, just enough to hide wedge gaps at gentle joints
+  vec2 P = A + dir * (a_corner.x * len + (a_corner.x * 2.0 - 1.0) * cap) + n * (a_corner.y * ext);
   gl_Position = vec4(P / h, 0.0, 1.0);
   v_across = a_corner.y * (halfDev + 1.0); v_half = halfDev; v_fold = min(wDev, 1.0); v_c = a_rgba;
 }`;
@@ -40,9 +41,9 @@ void main() {
 }`;
 export const POINT_FS = `#version 300 es
 precision highp float;
-uniform float u_dpr; uniform float u_r; uniform float u_ring; in vec2 v_off; in vec4 v_c; out vec4 o;
+uniform float u_dpr; uniform float u_r; uniform float u_ring; uniform vec4 u_ringColor; in vec2 v_off; in vec4 v_c; out vec4 o;
 void main() {
-  float d = length(v_off); float rDev = u_r * u_dpr; float cov;
+  float d = length(v_off); float rDev = u_r * u_dpr; float cov; vec4 c = u_ring > 0.5 ? u_ringColor : v_c;
   if (u_ring > 0.5) cov = clamp(u_dpr - abs(d - rDev) + 0.5, 0.0, 1.0); else cov = clamp(rDev + 0.5 - d, 0.0, 1.0);
-  float a = v_c.a * cov; o = vec4(v_c.rgb * a, a);
+  float a = c.a * cov; o = vec4(c.rgb * a, a);
 }`;

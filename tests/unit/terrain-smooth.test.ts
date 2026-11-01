@@ -23,3 +23,20 @@ describe("smoothRing", () => {
     const a0 = Math.abs(ringArea(circle)), a1 = Math.abs(ringArea(smoothRing(circle))); expect(a1 / a0).toBeGreaterThan(0.97); expect(a1 / a0).toBeLessThan(1.01);
   });
 });
+
+import { chaikinOpen, smoothOpen, splitRing, canonicalArc } from "@/app/canvas/terrain/smooth";
+describe("arc smoothing for shared boundaries", () => {
+  const arc: Ring = [[0, 0], [1, 0.2], [2, 0], [3, 0.3], [4, 0]];
+  it("chaikinOpen keeps both endpoints and doubles the interior", () => { const r = chaikinOpen(arc, 1); expect(r[0]).toEqual([0, 0]); expect(r[r.length - 1]).toEqual([4, 0]); expect(r.length).toBe(2 * (arc.length - 1)); });
+  it("smoothOpen of an arc and of its reverse are exact mirror images (so both sides of a seam agree)", () => {
+    const a = smoothOpen(canonicalArc(arc)), b = smoothOpen(canonicalArc([...arc].reverse())); expect(a).toEqual(b);
+  });
+  it("splitRing cuts a closed ring into maximal runs of density edges and seam edges, in ring order", () => {
+    const ring: Ring = [[0, 0], [1, 0], [2, 0], [2, 1], [2, 2], [1, 2], [0, 2], [0, 1], [0, 0]];
+    const density = (p: [number, number], q: [number, number]) => (p[1] + q[1]) / 2 < 1;   // bottom half = density boundary
+    const arcs = splitRing(ring, density); expect(arcs.map((a) => a.density)).toEqual([false, true]);   // maximal runs, wrapping past the ring start: seam (2,1)…(0,1), density (0,1)…(0,0)…(2,1)
+    expect(arcs.map((a) => a.pts.length)).toEqual([5, 5]);
+    expect(arcs[0].pts[arcs[0].pts.length - 1]).toEqual(arcs[1].pts[0]); expect(arcs[1].pts[arcs[1].pts.length - 1]).toEqual(arcs[0].pts[0]);
+  });
+  it("a ring with a single edge type stays one closed arc", () => { const arcs = splitRing(square(10), () => true); expect(arcs.length).toBe(1); expect(arcs[0].closed).toBe(true); });
+});

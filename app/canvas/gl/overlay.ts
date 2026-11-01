@@ -1,5 +1,5 @@
-import { placeLabels, LabelFader, labelSpacingPx, type LabelIn, type LabelState } from "../render/labels";
-import type { Camera, Viewport } from "../render/camera";
+import { placeLabels, LabelFader, labelSpacingPx, type LabelIn, type LabelState, type Measure } from "../render/labels";
+import { project, type Camera, type Viewport } from "../render/camera";
 
 /** Transparent Canvas 2D layer above the GL canvas: labels (placed with hysteresis, faded), scale bar, point counter, notices; in overlay-only mode also the points. */
 export class Overlay {
@@ -7,7 +7,7 @@ export class Overlay {
   readonly fader = new LabelFader(); private states: LabelState[] = []; lastPlaced = 0;
   constructor(private canvas: HTMLCanvasElement) { this.ctx = canvas.getContext("2d")!; }
   resize(w: number, h: number, dpr: number) { this.vp = { w, h }; this.dpr = dpr; this.canvas.width = Math.max(1, Math.round(w * dpr)); this.canvas.height = Math.max(1, Math.round(h * dpr)); this.canvas.style.width = `${w}px`; this.canvas.style.height = `${h}px`; }
-  measure = (text: string, px: number) => { const k = `${px}|${text}`; let w = this.measureCache.get(k); if (w === undefined) { this.ctx.font = `${px}px system-ui, sans-serif`; w = this.ctx.measureText(text).width; this.measureCache.set(k, w); } return { w, h: px }; };
+  measure: Measure = (text, px, bold = false) => { const k = `${bold ? "b" : "n"}${px}|${text}`; let w = this.measureCache.get(k); if (w === undefined) { this.ctx.font = `${bold ? "600 " : ""}${px}px system-ui, sans-serif`; w = this.ctx.measureText(text).width; this.measureCache.set(k, w); } return { w, h: px }; };
   /** Average room per visible point (CSS px) for the current positions. */
   spacing(cam: Camera, x: ArrayLike<number>, y: ArrayLike<number>) { return labelSpacingPx(cam, this.vp, x, y); }
   /** Run one placement pass; anchors resolve each label's current position (titles follow the tween). */
@@ -18,13 +18,15 @@ export class Overlay {
   /** Advance fades without re-placing. */
   tick(now: number) { this.states = this.fader.step(this.states.filter((s) => s.target === 1).map((s) => s.box), now); }
   get animating() { return this.fader.animating; }
-  labels(): { text: string; level: number; opacity: number }[] { return this.states.map((s) => ({ text: s.box.text, level: s.box.level, opacity: s.opacity })); }
-  draw(opts: { pointCount: number; unitPx: number; notice?: string; points?: { x: Float32Array; y: Float32Array; rgba: Uint8Array; radius: number; cam: Camera; selected: number } }) {
+  labels(): { text: string; level: number; opacity: number; row?: number }[] { return this.states.map((s) => ({ text: s.box.text, level: s.box.level, opacity: s.opacity, row: s.box.row })); }
+  /** Draw labels (re-projected from their anchors with the current camera, so they track the map between placement passes), the status bar, and in overlay-only mode the points. */
+  draw(cam: Camera, opts: { pointCount: number; unitPx: number; notice?: string; points?: { x: Float32Array; y: Float32Array; rgba: Uint8Array; radius: number; cam: Camera; selected: number } }) {
     const ctx = this.ctx, { w, h } = this.vp; ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); ctx.clearRect(0, 0, w, h);
     if (opts.points) this.drawPoints(opts.points);
     ctx.textBaseline = "middle"; ctx.textAlign = "center"; ctx.lineJoin = "round";
     for (const s of this.states) {
-      const l = s.box; ctx.globalAlpha = s.opacity; ctx.font = `${l.level === 0 ? "600 " : ""}${l.px}px system-ui, sans-serif`; const cx = l.x + l.w / 2, cy = l.y + l.h / 2;
+      const l = s.box; const p = project(cam, this.vp, l.ax, l.ay); const lx = p.x + l.dx, ly = p.y + l.dy;
+      ctx.globalAlpha = s.opacity; ctx.font = `${l.level === 0 ? "600 " : ""}${l.px}px system-ui, sans-serif`; const cx = lx + l.w / 2, cy = ly + l.h / 2;
       ctx.lineWidth = l.level === 0 ? 5 : 3; ctx.strokeStyle = "rgba(11,13,16,0.85)"; ctx.strokeText(l.text, cx, cy);
       ctx.fillStyle = l.level === 0 ? "#f3f3f3" : l.level === 1 ? "rgba(235,235,235,0.92)" : "rgba(220,220,220,0.85)"; ctx.fillText(l.text, cx, cy);
     }

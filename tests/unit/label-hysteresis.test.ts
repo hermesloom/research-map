@@ -24,7 +24,7 @@ describe("padding", () => {
 });
 describe("LabelFader", () => {
   it("fades a new label in over 150 ms, holds it, fades it out after it disappears, then drops it", () => {
-    const f = new LabelFader(); const box = { text: "A", x: 0, y: 0, w: 10, h: 10, level: 0, px: 20, align: "center" as const, key: "k" };
+    const f = new LabelFader(); const box = { text: "A", x: 0, y: 0, w: 10, h: 10, level: 0, px: 20, align: "center" as const, key: "k", ax: 0, ay: 0, dx: 0, dy: 0 };
     let s = f.step([box], 1000); expect(s[0].opacity).toBe(0);
     s = f.step([box], 1075); expect(s[0].opacity).toBeCloseTo(0.5, 2);
     s = f.step([box], 1200); expect(s[0].opacity).toBe(1);
@@ -32,11 +32,11 @@ describe("LabelFader", () => {
     s = f.step([], 1500); expect(s.length).toBe(0);
   });
   it("a label that reappears while fading out fades back in from its current opacity", () => {
-    const f = new LabelFader(); const box = { text: "A", x: 0, y: 0, w: 10, h: 10, level: 0, px: 20, align: "center" as const, key: "k" };
+    const f = new LabelFader(); const box = { text: "A", x: 0, y: 0, w: 10, h: 10, level: 0, px: 20, align: "center" as const, key: "k", ax: 0, ay: 0, dx: 0, dy: 0 };
     f.step([box], 0); f.step([box], 300); f.step([], 375); const s = f.step([box], 376); expect(s[0].opacity).toBeGreaterThan(0.4); expect(s[0].opacity).toBeLessThan(0.6);
   });
   it("reports whether another frame is needed", () => {
-    const f = new LabelFader(); const box = { text: "A", x: 0, y: 0, w: 10, h: 10, level: 0, px: 20, align: "center" as const, key: "k" };
+    const f = new LabelFader(); const box = { text: "A", x: 0, y: 0, w: 10, h: 10, level: 0, px: 20, align: "center" as const, key: "k", ax: 0, ay: 0, dx: 0, dy: 0 };
     f.step([box], 0); expect(f.animating).toBe(true); f.step([box], 500); expect(f.animating).toBe(false);
   });
 });
@@ -47,5 +47,17 @@ describe("needsPlacement", () => {
     expect(needsPlacement({ cameraChanged: true, inputsChanged: false, settled: true, sinceLast: 10 })).toBe(true);
     expect(needsPlacement({ cameraChanged: false, inputsChanged: true, settled: true, sinceLast: 0 })).toBe(true);
     expect(needsPlacement({ cameraChanged: false, inputsChanged: false, settled: true, sinceLast: 5000 })).toBe(false);
+  });
+});
+
+describe("stable label identity", () => {
+  it("a title's key depends on its row, not on its (tweened) position; structural labels key on tier, text and lens anchor", () => {
+    const a = { x: 0, y: 0, content: "T", level: 2, priority: 1, row: 7 }, b = { x: 3, y: 4, content: "T", level: 2, priority: 1, row: 7 };
+    expect(labelKey(a)).toBe(labelKey(b)); expect(labelKey({ ...a, row: 8 })).not.toBe(labelKey(a));
+    expect(labelKey({ x: 0, y: 0, content: "Theme", level: 0, priority: 1 })).not.toBe(labelKey({ x: 1, y: 0, content: "Theme", level: 0, priority: 1 }));
+  });
+  it("placed labels remember their anchor and the offset from it, so they can be re-projected every frame", () => {
+    const placed = placeLabels([{ x: 2, y: 1, content: "Title", level: 2, priority: 1, row: 3 }], cam, vp, measure, 1000);
+    expect(placed[0].ax).toBe(2); expect(placed[0].ay).toBe(1); expect(placed[0].dx).toBe(8); expect(Math.abs(placed[0].dy)).toBeLessThan(10);
   });
 });
