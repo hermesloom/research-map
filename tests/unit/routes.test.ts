@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+vi.mock("next/server", () => ({ connection: async () => {} })); // request-scope API; no-op outside Next
 beforeEach(() => { process.env.MONGODB_URI = "m"; process.env.OPENAI_API_KEY = "k"; process.env.CRON_SECRET = "s3cret"; vi.resetModules(); });
 
 describe("cron route auth", () => {
