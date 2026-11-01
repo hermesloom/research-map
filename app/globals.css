@@ -34,3 +34,12 @@ button.link { background: none; border: none; color: #9cc4ff; padding: 0; cursor
 .filters .bar { flex: 1 1 0; min-width: 6px; background: #4e79a7; border-radius: 2px 2px 0 0; cursor: crosshair; }
 .filters .bar.off { background: #2a2f37; }
 .filters .row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px; align-items: center; }
+
+/* inspector */
+.inspector { position: absolute; top: 72px; right: 12px; bottom: 12px; width: min(380px, calc(100vw - 24px)); overflow: auto; padding: 14px 16px; background: #15181dee; border: 1px solid #2a2f37; border-radius: 10px; font-size: 13px; }
+.inspector h2 { font-size: 16px; margin: 0 24px 8px 0; }
+.inspector .close { position: absolute; top: 8px; right: 12px; font-size: 20px; }
+.inspector dl { display: grid; grid-template-columns: 1fr; gap: 2px 0; margin: 10px 0; }
+.inspector dt { opacity: .6; margin-top: 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+.inspector dd { margin: 0; }
+.inspector .x { opacity: .7; }
