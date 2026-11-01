@@ -56,6 +56,6 @@ export interface Layout {
 export interface Manifest { _id: "current"; layoutVersion: number; pointsUrl: string; metaUrl: string; labelsUrl: string; generatedAt: Date; count: number; embeddingModel: string; }
 export interface RunDoc { startedAt: Date; finishedAt?: Date; kind: "daily" | "bootstrap" | "reconcile"; counts: Record<string, number>; errors: string[]; notes: string[]; ok: boolean; }
 export interface Override {
-  _id?: unknown; type: "pin" | "renameLabel" | "moveLeaf" | "retireQuestion" | "trailEdit"; xId?: string; clusterId?: number; questionId?: string;
+  type: "pin" | "renameLabel" | "moveLeaf" | "retireQuestion" | "trailEdit"; xId?: string; clusterId?: number; questionId?: string;
   payload: Record<string, unknown>; createdAt: Date;
 }
