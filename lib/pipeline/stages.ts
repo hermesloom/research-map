@@ -10,6 +10,9 @@ import { gradeItem } from "../llm/grade";
 import { placeItem } from "../place";
 import { sha256 } from "../hash";
 import { env } from "../env";
+import { mapConcurrent } from "./concurrency";
+
+const LLM_CONCURRENCY = 6;
 
 export interface StageDeps {
   db: Db; fetchImpl: typeof fetch; enrichUrl: typeof enrichUrl; describeImage: typeof describeImage; normalizeItem: typeof normalizeItem;
@@ -50,15 +53,15 @@ export async function stageEnrich(d: StageDeps, limit: number) {
 export async function stageNormalize(d: StageDeps, limit: number) {
   const c = collections(d.db); const out = { done: 0, empty: 0, errors: 0 };
   const todo = await c.items.find({ stage: "enriched" }).sort({ createdAt: 1 }).limit(limit).toArray();
-  for (const it of todo) {
+  await mapConcurrent(todo, LLM_CONCURRENCY, async (it) => {
     try {
       const en = (await c.enrichment.findOne({ xId: it.xId })) ?? {}; const parent = it.parentId ? await c.items.findOne({ xId: it.parentId }) : null;
       const n = await d.normalizeItem(it, en, parent);
-      if (!n) { out.empty++; await c.enrichment.updateOne({ xId: it.xId }, { $set: { needsContent: true } }, { upsert: true }); await c.items.updateOne({ xId: it.xId }, { $set: { stage: "graded" } }); continue; }
+      if (!n) { out.empty++; await c.enrichment.updateOne({ xId: it.xId }, { $set: { needsContent: true } }, { upsert: true }); await c.items.updateOne({ xId: it.xId }, { $set: { stage: "graded" } }); return; }
       await c.enrichment.updateOne({ xId: it.xId }, { $set: { normalized: n, needsContent: false } }, { upsert: true });
       await c.items.updateOne({ xId: it.xId }, { $set: { stage: "normalized" }, $unset: { stageError: "" } }); out.done++;
     } catch (e) { out.errors++; await c.items.updateOne({ xId: it.xId }, { $set: { stageError: `normalize: ${String(e).slice(0, 300)}` } }); }
-  }
+  });
   return out;
 }
 
@@ -98,15 +101,17 @@ export async function stagePlace(d: StageDeps, limit: number) {
 export async function stageGrade(d: StageDeps, limit: number) {
   const c = collections(d.db); const questions = await c.questions.find({ validTo: null }).toArray();
   const todo = await c.items.find({ stage: "placed" }).sort({ createdAt: 1 }).limit(limit).toArray(); let done = 0;
-  for (const it of todo) {
-    if (!it.isResearchQuestion) {
-      const en = await c.enrichment.findOne({ xId: it.xId }); const v = await c.vectors.findOne({ xId: it.xId });
-      if (en?.normalized && v) {
-        const { relations } = await d.gradeItem(it, en.normalized, v.embedding, questions);
-        for (const r of relations) await c.relations.updateOne({ xId: r.xId, questionId: r.questionId }, { $set: r }, { upsert: true });
+  await mapConcurrent(todo, LLM_CONCURRENCY, async (it) => {
+    try {
+      if (!it.isResearchQuestion) {
+        const en = await c.enrichment.findOne({ xId: it.xId }); const v = await c.vectors.findOne({ xId: it.xId });
+        if (en?.normalized && v) {
+          const { relations } = await d.gradeItem(it, en.normalized, v.embedding, questions);
+          for (const r of relations) await c.relations.updateOne({ xId: r.xId, questionId: r.questionId }, { $set: r }, { upsert: true });
+        }
       }
-    }
-    await c.items.updateOne({ xId: it.xId }, { $set: { stage: "graded" } }); done++;
-  }
+      await c.items.updateOne({ xId: it.xId }, { $set: { stage: "graded" }, $unset: { stageError: "" } }); done++;
+    } catch (e) { await c.items.updateOne({ xId: it.xId }, { $set: { stageError: `grade: ${String(e).slice(0, 300)}` } }); }
+  });
   return { done };
 }
