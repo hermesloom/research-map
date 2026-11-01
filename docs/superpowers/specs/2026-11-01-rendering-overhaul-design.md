@@ -27,7 +27,7 @@ Why terrain geometry is vector: per-category KDE → isobands → triangles, bui
 | Element | Rule |
 | --- | --- |
 | Background | `#0b0d10`. |
-| Terrain bands | Per cluster category (unclustered category 0 has no terrain). Six nested levels at fractions `[0.10, 0.25, 0.40, 0.55, 0.70, 0.85]` of that category's peak density. Band b (1…6, outermost first) is the ring between level b and b+1, filled with the category colour at alpha `0.10 + 0.075·b` (0.175 … 0.55), premultiplied, over-blended in level order (so where two categories overlap the inner, denser one wins visually). Within a category bands are disjoint: no overdraw. |
+| Terrain bands | A vector **tiling** of the total density: six levels chosen by enclosed mass (highest-density regions `[0.94, 0.86, 0.74, 0.58, 0.38, 0.15]`, which for a Gaussian blob equal the classic fraction-of-peak levels `[0.06 … 0.85]` the accepted raster renderer used), each level region split along the curves where one cluster category's density overtakes every other's (region (c, L) = {total ≥ L} ∩ {f_c > max others}, traced as the zero isoline of min(total − L, f_c − other), so neighbouring regions share identical boundaries). Unclustered category 0 has no terrain. Level regions are stacked (level ≥ b drawn over level ≥ b−1) with incremental alphas so the visible alpha at band b is exactly `0.10 + 0.075·b` (0.175 … 0.55) in the category colour; regions never overlap across categories. *Decided during implementation:* per-category isobands with holes produced overlapping mud where categories interleave (time lens) and earcut slivers where a hole crossed its outer ring; the tiling with stacked regions has neither problem. |
 | Contour lines | Every band boundary stroked in the category colour: outermost ring 1.6 px at alpha 0.95, inner rings 1 px at alpha 0.6. Pixel-constant width at every zoom, analytic anti-aliasing (half-device-pixel feather). |
 | Terrain visibility | Alpha 1 while the room per visible point (§5) is ≤ 160 px, fading linearly to 0.35 at ≥ 400 px. Same rule in every lens. |
 | Points | Discs, radius `min(7, 3 + 0.8·log2(max(1, zoomRel)))` CSS px where zoomRel is zoom relative to the fitted view; colour = leaf palette with grade alpha `[0.18, 0.45, 0.85, 1.0]` (ungraded displays as grade 1; unclustered grey `#cfcfcf`). SDF disc with 1 px feather. No halos, rings, trails or any marking for new or provisional posts. |
@@ -58,19 +58,19 @@ MapView.tsx (React shell)  ── creates ──▶ MapEngine (app/canvas/gl/eng
 
 Input: `x, y: Float32Array` (visible rows of the active lens), `cat: Uint16Array` (0 = unclustered), `catRGB: [r,g,b][]`, options `{ sigmaUnits?, levels? }`.
 
-1. **Bandwidth.** `sigma = clamp(2.5 · medianNN(x, y), 0.02·extent, 0.08·extent)` in data units, where `medianNN` is the median nearest-neighbour spacing of all input points (sampled) and `extent` is the larger side of the bounding box. Grid resolution `cellsPerUnit = 16 / sigma` (σ = 16 cells).
-2. **Per category with ≥ 3 points:** sub-grid = category bbox padded by 3σ; bilinear splat; Gaussian via `d3-array blur2` with radius `r = (sqrt(4·16² + 1) − 1) / 2`; `peak = max`.
-3. **Isolines:** `d3-contour contours().size([n, m]).smooth(true).contour(values, f·peak)` for each level fraction. Rings stay in sub-grid coordinates until step 5.
-4. **Isobands:** band i = polygons of level i; the exterior rings of level i+1 that lie inside become extra holes (regions nest). Skip a band polygon whose area < 4 cells².
-5. **Smoothing (each distinct ring once, shared between its two band roles):** Douglas–Peucker 0.5 cells → Chaikin ×2 → Douglas–Peucker 0.25 cells, then convert to data units.
-6. **Mesh:** earcut per band polygon (holes via start indices). Output `TerrainMesh`:
+1. **Bandwidth.** `sigma = clamp(2.5 · medianNN(x, y), 0.005·extent, 0.08·extent)` in data units, where `medianNN` is the median nearest-neighbour spacing of all input points (sampled) and `extent` is the larger side of the bounding box (the floor is only a guard against coincident points, so anisotropic layouts such as the time lens are not inflated by their width). Grid resolution `cellsPerUnit = 12 / sigma` (σ = 12 cells), coarsened if the global grid would exceed 600k cells.
+2. **Pass 1, per category with ≥ 3 points:** sub-grid = category bbox padded by 3σ; bilinear splat; Gaussian via `d3-array blur2` with radius `r = (sqrt(4σ² + 1) − 1) / 2`; accumulate the total density and the two strongest categories per global cell.
+3. **Levels:** `hdrLevels(total, MASS_LEVELS)`: density thresholds above which the cells hold the given fraction of the total mass (estimated on a stride sample).
+4. **Pass 2, per category:** recompute its field; crop to the bounding window of the cells it dominates (+2 cells); for each level build `m = min(total − L, f_c − strongestOther)` and trace `contours().contour(m, 0)`; stop at the first empty level. Skip polygons with area < 4 cells².
+5. **Smoothing (each distinct ring once):** Chaikin ×2 → Douglas–Peucker 0.15 cells (corner cutting keeps a simple ring simple; no pre-simplification, which could introduce self-intersections), then convert to data units.
+6. **Mesh:** earcut per level region (its own holes via start indices), vertex alpha = `BAND_ALPHA_INCREMENT(b)`. Output `TerrainMesh`:
    - `positions: Float32Array` (x, y pairs, data units), `colors: Uint8Array` (premultiplied RGBA per vertex), `indices: Uint32Array`, `triCount`,
    - `lines: Float32Array` of segments `(ax, ay, bx, by)`, `lineColors: Uint8Array` (RGBA per segment), `lineWidths: Float32Array` (CSS px),
    - `stats: { categories, triangles, segments, ms }`.
    All typed arrays are transferred, not copied.
 7. Determinism: same input → identical output (no randomness), so caches are valid.
 
-Expected: ≈ 18k triangles, ≤ 25k segments, 0.3–0.6 s cold on a laptop, 2–3× that on a mid-range phone; both off the main thread.
+Measured on the real map (1,232 posts, 40 clusters): terrain lens ≈ 9.5k triangles / 10k segments, 0.4 s warm in Node, ≈ 1 s cold in the browser worker; question lens ≈ 1.6 s; time lens ≈ 2.7 s (every cluster spans the whole time axis). All off the main thread, cached per (lens, rows, positions).
 
 ### 4.2 TerrainService (`gl/terrainService.ts`)
 
