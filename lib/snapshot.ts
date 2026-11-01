@@ -33,7 +33,7 @@ export function buildSnapshot(input: { layout: Layout; items: Item[]; enrichment
     points.provisional.push(p.provisional ? 1 : 0); points.createdAt.push(Math.floor(it.createdAt.getTime() / 1000)); points.kind.push(Math.max(0, KINDS.indexOf(it.kind)));
     const n = en?.normalized; const firstUrl = it.urls.find((u) => !u.isMedia);
     const title = n?.title ?? en?.title ?? it.text.slice(0, 80);
-    meta.ids.push(p.xId); meta.title.push(title); meta.gist.push(n?.gist ?? it.text.slice(0, 280)); meta.url.push(firstUrl?.expandedUrl ?? null); meta.domain.push(firstUrl?.domain ?? null);
+    meta.ids.push(p.xId); meta.title.push(title); meta.gist.push(n?.summaryEn ?? n?.gist ?? it.text.slice(0, 280));   // display text is always English meta.url.push(firstUrl?.expandedUrl ?? null); meta.domain.push(firstUrl?.domain ?? null);
     meta.thumb.push(en?.thumbUrl ?? en?.ogImage ?? null); meta.role.push(role); meta.rationale.push(core?.rationale ?? ""); meta.tags.push(n?.tagsEn ?? []); meta.lang.push(n?.language ?? it.lang ?? "und");
     meta.subQuestions.push(rels.filter((r) => r.questionId !== "core").map((r) => r.questionId));
     const gs = gradeSum.get(p.clusterId) ?? [0, 0]; if (grade >= 0) { gs[0] += grade; gs[1] += 1; } gradeSum.set(p.clusterId, gs);

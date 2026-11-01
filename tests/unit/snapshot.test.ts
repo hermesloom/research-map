@@ -34,3 +34,11 @@ describe("ungraded items", () => {
     expect(s.points.grade[1]).toBe(-1); expect(s.meta.role[1]).toBe("ungraded");
   });
 });
+
+describe("display language", () => {
+  it("meta.gist is the English summary when available (everything shown is English)", () => {
+    const en = new Map([["1", { xId: "1", normalized: { title: "One", summaryEn: "An English summary.", gist: "Eine deutsche Zusammenfassung.", tagsEn: [], language: "de" } } as any]]);
+    const s = buildSnapshot({ layout, items: [item("1"), item("2")], enrichment: en, relations, questions, overrides: [], generatedAt: now });
+    expect(s.meta.gist[0]).toBe("An English summary.");
+  });
+});

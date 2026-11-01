@@ -29,3 +29,12 @@ describe("bands", () => {
     expect(bandOf(0, lv)).toBe(0); expect(bandOf(10, lv)).toBe(6); expect(bandOf(lv[2] + 1e-6, lv)).toBe(3);
   });
 });
+
+import { tileSegments } from "@/app/canvas/render/contours";
+describe("tileSegments", () => {
+  it("buckets segments into grid tiles so only visible tiles are stroked", () => {
+    const segs: [number, number, number, number][] = [[1, 1, 2, 2], [70, 70, 71, 71], [63, 1, 65, 1]];
+    const tiles = tileSegments(segs, 128, 128, 64);
+    expect(tiles.get("0,0")!.length).toBe(1); expect(tiles.get("1,1")!.length).toBe(1); expect(tiles.get("0,0")!.length + (tiles.get("1,0")?.length ?? 0)).toBe(2);   // the straddling segment lands in exactly one tile (by midpoint)
+  });
+});

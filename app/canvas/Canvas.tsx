@@ -5,7 +5,6 @@ import { lensXY, lensLabels, primarySeed } from "./lenses";
 import { categoryColors, categoryIndex, visibleMask } from "./colors";
 import { parseUrlState, serializeUrlState, type UrlState } from "./urlState";
 import { newestRows } from "./overlayLogic";
-import type { OverlayStore } from "./CardOverlay";
 import type { Camera } from "./render/camera";
 import type { EngineData } from "./render/engine";
 import Canvas2D, { type Canvas2DHandle } from "./Canvas2D";
@@ -59,10 +58,6 @@ export default function Canvas() {
   const selectedRow = useMemo(() => (snap && idx && url.sel ? idx.indexOf(snap.points.ids.indexOf(url.sel)) : -1), [snap, idx, url.sel]);
 
   const select = useCallback((xId: string) => { setUrl((u) => ({ ...u, sel: xId })); void loadMeta(); }, [loadMeta]);
-  const store = useRef<OverlayStore>({ snap: null, idx: [], xy: null, loadMeta, onPick: () => {}, version: 0 });
-  store.current.snap = snap; store.current.idx = idx ?? []; store.current.xy = target; store.current.selected = url.sel; store.current.loadMeta = loadMeta;
-  store.current.onPick = (row) => { if (idx && snap) select(snap.points.ids[idx[row]]); };
-  store.current.version = (idx?.length ?? 0) + (snap?.meta ? 1_000_000 : 0) + (url.lens === "terrain" ? 0 : url.lens === "question" ? 10_000_000 : 20_000_000);
   const onPick = useCallback((row: number) => { if (idx && snap) select(snap.points.ids[idx[row]]); }, [idx, snap, select]);
   const flyTo = useCallback((i: number) => { if (!idx || !target) return; const r = idx.indexOf(i); if (r >= 0) map.current?.flyTo(target.x[r], target.y[r]); }, [idx, target]);
 
@@ -70,7 +65,7 @@ export default function Canvas() {
     <div style={{ position: "fixed", inset: 0 }}>
       {error && <div style={{ padding: 24 }}>Could not load the map: {error}</div>}
       {!error && !snap && <div style={{ padding: 24 }}>Loading map…</div>}
-      {snap && <Canvas2D ref={map} data={data} target={target} labels={labels} selectedRow={selectedRow} initialCamera={initialCamera} store={store.current} onCamera={onCamera} onPick={onPick} />}
+      {snap && <Canvas2D ref={map} data={data} target={target} lens={url.lens} labels={labels} selectedRow={selectedRow} initialCamera={initialCamera} onCamera={onCamera} onPick={onPick} />}
       {snap && <TopBar url={url} setUrl={setUrl} snap={snap} onFlyTo={flyTo} />}
       {snap && <Filters snap={snap} filters={filters} setFilters={setFilters} url={url} setUrl={setUrl} loadMeta={loadMeta} />}
       {snap && url.sel && <Inspector snap={snap} xId={url.sel} onClose={() => setUrl((u) => ({ ...u, sel: undefined }))} loadMeta={loadMeta} />}

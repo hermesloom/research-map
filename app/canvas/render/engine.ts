@@ -1,7 +1,7 @@
 import { project, unproject, zoomAt, fitCamera, clampScale, type Camera, type Viewport } from "./camera";
 import { placeLabels, type LabelIn } from "./labels";
 import { rasterSpec, medianSpacing } from "./density";
-import { computeDensityGrid, marchingSquares, bandLevels, bandOf } from "./contours";
+import { computeDensityGrid, marchingSquares, bandLevels, bandOf, tileSegments } from "./contours";
 import { tween } from "../lenses";
 import { nearestRowAt, type ProxyLike } from "../overlayLogic";
 
@@ -16,7 +16,8 @@ export class MapEngine {
   private data: EngineData | null = null; private pos: { x: Float32Array; y: Float32Array } | null = null;
   private tweenFrom: { x: Float32Array; y: Float32Array } | null = null; private tweenTo: { x: Float32Array; y: Float32Array } | null = null; private tweenT0 = 0;
   private labels: LabelIn[] = []; private selected = -1; private dirty = true; private raf = 0; private destroyed = false;
-  private terrain: { canvas: HTMLCanvasElement; x0: number; x1: number; y0: number; y1: number } | null = null; private terrainTimer: number | null = null;
+  private terrain: { canvas: HTMLCanvasElement; x0: number; x1: number; y0: number; y1: number; gw: number; gh: number; tile: number; tiles: Map<string, { color: string; outer: boolean; path: Path2D }[]> } | null = null; private terrainTimer: number | null = null;
+  private terrainEnabled = true;
   private measureCache = new Map<string, number>();
   private drag: { id: number; X: number; Y: number; moved: boolean } | null = null; private pinch: Map<number, { X: number; Y: number }> = new Map(); private pinchDist = 0;
   readonly proxy: ProxyLike;
@@ -42,10 +43,12 @@ export class MapEngine {
     if (first) { const fit = fitCamera(d.x, d.y, this.vp, 0.85); this.fitScale = fit.scale; this.setCamera(initialCamera ?? fit); }
     this.scheduleTerrain(); this.dirty = true;
   }
-  /** Animate every point from its current position to (x, y) over 600 ms. */
-  setTarget(x: Float32Array, y: Float32Array) {
+  /** Animate every point from its current position to (x, y) over 600 ms. `terrain` toggles the density layer for this target (only the topic terrain shows it). */
+  setTarget(x: Float32Array, y: Float32Array, opts: { terrain?: boolean; refit?: boolean; fitFill?: number } = {}) {
+    this.terrainEnabled = opts.terrain ?? true; if (!this.terrainEnabled) this.terrain = null;
     if (!this.pos || this.pos.x.length !== x.length) { this.pos = { x: Float32Array.from(x), y: Float32Array.from(y) }; this.scheduleTerrain(); this.dirty = true; return; }
     this.tweenFrom = { x: Float32Array.from(this.pos.x), y: Float32Array.from(this.pos.y) }; this.tweenTo = { x, y }; this.tweenT0 = performance.now(); this.dirty = true;
+    if (opts.refit) { const fit = fitCamera(x, y, this.vp, opts.fitFill ?? 0.85); this.fitScale = fit.scale; this.setCamera(fit); }
   }
   setLabels(l: LabelIn[]) { this.labels = l; this.dirty = true; }
   setSelected(row: number) { this.selected = row; this.dirty = true; }
@@ -84,6 +87,7 @@ export class MapEngine {
 
   // ---- terrain (once per point set, off the hot path)
   private scheduleTerrain() {
+    if (!this.terrainEnabled) { this.terrain = null; return; }
     if (this.terrainTimer) clearTimeout(this.terrainTimer);
     this.terrainTimer = window.setTimeout(() => { this.terrainTimer = null; this.buildTerrain(); }, 50);
   }
@@ -112,7 +116,15 @@ export class MapEngine {
     B.imageSmoothingEnabled = true; B.drawImage(off, 0, 0, big.width, big.height);
     B.setTransform(upscale, 0, 0, upscale, 0, 0); B.lineJoin = "round"; B.lineCap = "round";
     for (const L of paths.values()) { B.lineWidth = (L.outer ? 1.6 : 1) / upscale * 1.5; B.strokeStyle = L.outer ? withAlpha(L.color, 0.9) : withAlpha(L.color, 0.55); B.stroke(L.path); }
-    this.terrain = { canvas: big, x0: spec.x0, x1: spec.x1, y0: spec.y0, y1: spec.y1 }; this.dirty = true;
+    // Vector tiles for close zoom: the baked raster blurs past ~1.8× fit, so from there contour lines are stroked per visible tile.
+    const tile = 32; const tiles = new Map<string, { color: string; outer: boolean; path: Path2D }[]>();
+    levels.forEach((iso, li) => {
+      const byTile = tileSegments(marchingSquares(grid.D, gw, gh, iso), gw, gh, tile);
+      for (const [k, segs] of byTile) { const groups = new Map<number, Path2D>();
+        for (const [x0, y0, x1, y1] of segs) { const cell = Math.min(gh - 1, Math.floor((y0 + y1) / 2)) * gw + Math.min(gw - 1, Math.floor((x0 + x1) / 2)); const cat = grid.bestCat[cell]; let pth = groups.get(cat); if (!pth) { pth = new Path2D(); groups.set(cat, pth); } pth.moveTo(x0, y0); pth.lineTo(x1, y1); }
+        const arr = tiles.get(k) ?? []; for (const [cat, path] of groups) arr.push({ color: d.catColor[cat] ?? "rgb(200,200,200)", outer: li === 0, path }); tiles.set(k, arr); }
+    });
+    this.terrain = { canvas: big, x0: spec.x0, x1: spec.x1, y0: spec.y0, y1: spec.y1, gw, gh, tile, tiles }; this.dirty = true;
   }
 
   // ---- render loop
@@ -128,10 +140,20 @@ export class MapEngine {
   private draw() {
     const ctx = this.ctx, { w, h } = this.vp; ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); ctx.fillStyle = "#0b0d10"; ctx.fillRect(0, 0, w, h);
     const d = this.data, pos = this.pos; if (!d || !pos) return; const cam = this.cam;
-    // terrain fades out as you zoom in (points take over)
-    if (this.terrain) {
-      const T = this.terrain; const alpha = Math.max(0, Math.min(1, 1 - (cam.scale / (this.fitScale || 1) - 2.5) / 5));
-      if (alpha > 0) { const a = project(cam, this.vp, T.x0, T.y1), b = project(cam, this.vp, T.x1, T.y0); ctx.globalAlpha = alpha; ctx.imageSmoothingEnabled = true; ctx.drawImage(T.canvas, a.x, a.y, b.x - a.x, b.y - a.y); ctx.globalAlpha = 1; }
+    // terrain fades out as you zoom in (points take over): full until 2× fit, gone at 4.5×
+    if (this.terrain && this.terrainEnabled) {
+      const T = this.terrain; const zoomRel = cam.scale / (this.fitScale || 1); const alpha = Math.max(0, Math.min(1, 1 - (zoomRel - 2) / 2.5));
+      if (alpha > 0) {
+        const a = project(cam, this.vp, T.x0, T.y1), b = project(cam, this.vp, T.x1, T.y0); const sx = (b.x - a.x) / T.gw, sy = (b.y - a.y) / T.gh;
+        ctx.globalAlpha = alpha; ctx.imageSmoothingEnabled = true; ctx.drawImage(T.canvas, a.x, a.y, b.x - a.x, b.y - a.y);
+        if (zoomRel >= 1.5) {   // crisp vector contour lines for the visible tiles only
+          const tx0 = Math.max(0, Math.floor((0 - a.x) / sx / T.tile)), tx1 = Math.floor((w - a.x) / sx / T.tile), ty0 = Math.max(0, Math.floor((0 - a.y) / sy / T.tile)), ty1 = Math.floor((h - a.y) / sy / T.tile);
+          ctx.save(); ctx.setTransform(this.dpr * sx, 0, 0, this.dpr * sy, this.dpr * a.x, this.dpr * a.y); ctx.lineJoin = "round"; ctx.lineCap = "round";
+          for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const arr = T.tiles.get(`${tx},${ty}`); if (!arr) continue; for (const L of arr) { ctx.lineWidth = (L.outer ? 1.6 : 1) / sx; ctx.strokeStyle = L.outer ? withAlpha(L.color, 0.95) : withAlpha(L.color, 0.6); ctx.stroke(L.path); } }
+          ctx.restore();
+        }
+        ctx.globalAlpha = 1;
+      }
     }
     // points, batched by colour
     const radius = Math.min(7, 3 + Math.log2(Math.max(1, cam.scale / (this.fitScale || 1))) * 0.8); const groups = new Map<string, Path2D>(); const pad = radius + 2;
@@ -150,7 +172,7 @@ export class MapEngine {
     const placed = placeLabels(this.labels, cam, this.vp, (t, px) => this.measure(t, px), cam.scale / (this.fitScale || 1));
     ctx.textBaseline = "middle"; ctx.textAlign = "center"; ctx.lineJoin = "round";
     for (const l of placed) {
-      ctx.font = `${l.level === 0 ? "600 " : ""}${l.px}px system-ui, sans-serif`; const cx = l.x + l.w / 2, cy = l.y + l.h / 2;
+      ctx.font = `${l.level === 0 ? "600 " : ""}${l.px}px system-ui, sans-serif`; const cx = l.x + l.w / 2, cy = l.y + l.h / 2; ctx.textAlign = "center";
       ctx.lineWidth = l.level === 0 ? 5 : 3; ctx.strokeStyle = "rgba(11,13,16,0.85)"; ctx.strokeText(l.text, cx, cy);
       ctx.fillStyle = l.level === 0 ? "#f3f3f3" : l.level === 1 ? "rgba(235,235,235,0.92)" : "rgba(220,220,220,0.85)"; ctx.fillText(l.text, cx, cy);
     }

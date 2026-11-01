@@ -38,3 +38,10 @@ export function marchingSquares(D: Float32Array, w: number, h: number, iso: numb
   }
   return out;
 }
+
+/** Bucket segments by the grid tile containing their midpoint, so a zoomed-in frame strokes only the visible tiles. */
+export function tileSegments(segs: [number, number, number, number][], w: number, h: number, tile: number): Map<string, [number, number, number, number][]> {
+  const out = new Map<string, [number, number, number, number][]>();
+  for (const s of segs) { const tx = Math.min(Math.floor(w / tile), Math.floor((s[0] + s[2]) / 2 / tile)), ty = Math.min(Math.floor(h / tile), Math.floor((s[1] + s[3]) / 2 / tile)); const k = `${tx},${ty}`; const a = out.get(k); if (a) a.push(s); else out.set(k, [s]); }
+  return out;
+}

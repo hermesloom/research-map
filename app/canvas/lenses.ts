@@ -53,7 +53,7 @@ export function tween(a: Float32Array, b: Float32Array, t: number, out: Float32A
   for (let i = 0; i < a.length; i++) out[i] = a[i] + (b[i] - a[i]) * e; return out;
 }
 
-export type LensLabel = { x: number; y: number; content: string | { image: string; width: number; height: number }; level: number; priority: number };
+export type LensLabel = { x: number; y: number; content: string | { image: string; width: number; height: number }; level: number; priority: number; align?: "center" | "right"; px?: number };
 /** Labels for the active lens. Terrain uses the batch job's labels; the other lenses label their own geometry. */
 export function lensLabels(id: LensId, p: PointsFile, xy: { x: Float32Array; y: Float32Array }, ctx: { questions: { id: string; text: string; parentId: string | null }[]; subOrder: string[]; terrainLabels: LensLabel[] }): LensLabel[] {
   if (id === "terrain") return ctx.terrainLabels;
@@ -63,7 +63,8 @@ export function lensLabels(id: LensId, p: PointsFile, xy: { x: Float32Array; y: 
   }
   let minX = Infinity; for (let i = 0; i < xy.x.length; i++) if (xy.x[i] < minX) minX = xy.x[i]; if (!Number.isFinite(minX)) minX = 0;
   const text = (sid: string) => ctx.questions.find((q) => q.id === sid)?.text ?? sid;
-  return [...ctx.subOrder.map((sid, i) => ({ x: minX - 0.5, y: -(i + 0.4), content: text(sid), level: 0, priority: 1000 - i })), { x: minX - 0.5, y: -(ctx.subOrder.length + 0.4), content: "unassigned", level: 0, priority: 10 }];
+  const row = (y: number, content: string, priority: number) => ({ x: minX - 0.2, y, content, level: 0, priority, align: "right" as const, px: 13 });
+  return [...ctx.subOrder.map((sid, i) => row(-(i + 0.4), text(sid), 1000 - i)), row(-(ctx.subOrder.length + 0.4), "unassigned", 10)];
 }
 
 /** Walk an (induced) sub-question up to its seed (direct child of core); null when unknown. */
