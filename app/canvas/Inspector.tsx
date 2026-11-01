@@ -16,7 +16,7 @@ export default function Inspector({ snap, xId, onClose, loadMeta }: { snap: Snap
   const exportCanvas = () => { if (!meta) return; const blob = new Blob([JSON.stringify(toJsonCanvas(p, meta), null, 1)], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "research-map.canvas"; a.click(); URL.revokeObjectURL(a.href); };
   return (
     <aside className="inspector" aria-label="Post details">
-      <button className="link close" onClick={onClose} aria-label="Close">×</button>
+      <div className="head"><span className="dim small">Post</span><button className="link close" onClick={onClose} aria-label="Close">×</button></div>
       <TweetEmbed id={xId} url={xUrl} />
       {meta ? (<>
         <h2>{meta.title[i]}</h2>
