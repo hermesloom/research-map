@@ -8,7 +8,7 @@ d("db", () => {
     process.env.MONGODB_URI = uri!; process.env.MONGODB_DB = "research_map_test"; process.env.OPENAI_API_KEY = "x";
     mod = await import("@/lib/db");
   });
-  afterAll(async () => { const db = await mod.getDb(); await db.dropDatabase(); await mod.closeDb(); });
+  afterAll(async () => { const db = await mod.getDb(); for (const c of await db.collections()) await c.drop().catch(() => {}); await mod.closeDb(); });
 
   it("creates unique xId indexes and upserts idempotently", async () => {
     const db = await mod.getDb(); await mod.ensureIndexes(db);
