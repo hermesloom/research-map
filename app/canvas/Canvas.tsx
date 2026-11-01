@@ -5,7 +5,8 @@ import { useSnapshot } from "./useSnapshot";
 import { lensXY, tween } from "./lenses";
 import { categoryColors, categoryIndex, visibleMask } from "./colors";
 import { parseUrlState, serializeUrlState, type UrlState } from "./urlState";
-import { hasWebGPU, FALLBACK_MESSAGE } from "./webgpu";
+import { probeWebGPU } from "./webgpu";
+import CanvasFallback from "./CanvasFallback";
 import { CardOverlay } from "./CardOverlay";
 import TopBar from "./TopBar";
 import Inspector from "./Inspector";
@@ -22,6 +23,8 @@ export default function Canvas() {
   const [filters, setFilters] = useState<FilterState>({});
   const [size, setSize] = useState({ w: 800, h: 600 });
   const host = useRef<HTMLDivElement>(null);
+  const [gpu, setGpu] = useState<boolean | null>(null);
+  useEffect(() => { probeWebGPU().then(setGpu); }, []);
 
   useEffect(() => { const el = host.current; if (!el) return; const ro = new ResizeObserver(([e]) => setSize({ w: e.contentRect.width, h: e.contentRect.height })); ro.observe(el); return () => ro.disconnect(); }, [snap]);
   useEffect(() => {
@@ -63,24 +66,29 @@ export default function Canvas() {
     return snap.labels.questions.filter((q) => q.parentId === "core").map((q, i) => ({ x: 0, y: -(i + 0.4), content: q.text, level: 0, priority: 1000 }));
   }, [snap, url.lens]);
 
-  if (!hasWebGPU()) return <div style={{ padding: 24 }}>{FALLBACK_MESSAGE}</div>;
   if (error) return <div style={{ padding: 24 }}>Could not load the map: {error}</div>;
-  if (!snap || !data) return <div style={{ padding: 24 }}>Loading map…</div>;
+  if (!snap || !data || gpu === null) return <div style={{ padding: 24 }}>Loading map…</div>;
   const scale = viewport?.scale ?? 1;
   const flyTo = (i: number) => { if (xy) setViewport({ x: xy.x[i], y: xy.y[i], scale: 6 }); };
   return (
     <div ref={host} style={{ position: "fixed", inset: 0 }}>
-      <EmbeddingView
-        data={{ x: data.x, y: data.y, category: data.category }} categoryColors={COLORS} labels={labels} width={size.w} height={size.h}
-        config={{ colorScheme: "dark", mode: scale < 1.5 && url.lens === "terrain" ? "density" : "points", minimumDensity: 0.002, autoLabelEnabled: false }}
-        viewportState={viewport} onViewportState={setViewport} tooltip={tooltip} onTooltip={setTooltip}
-        onSelection={(pts) => {
-          const r = pts?.[0]; if (!r) return; let best = 0, bd = Infinity;
-          for (let k = 0; k < data.x.length; k++) { const dd = (data.x[k] - r.x) ** 2 + (data.y[k] - r.y) ** 2; if (dd < bd) { bd = dd; best = k; } }
-          const i = data.idx[best]; setUrl((u) => ({ ...u, sel: snap.points.ids[i] })); void loadMeta();
-        }}
-        customOverlay={{ class: CardOverlay, props: { snap, idx: data.idx, scale, xy: { x: data.x, y: data.y }, selected: url.sel, loadMeta } }}
-      />
+      {gpu ? (
+        <EmbeddingView
+          data={{ x: data.x, y: data.y, category: data.category }} categoryColors={COLORS} labels={labels} width={size.w} height={size.h}
+          config={{ colorScheme: "dark", mode: scale < 1.5 && url.lens === "terrain" ? "density" : "points", minimumDensity: 0.002, autoLabelEnabled: false }}
+          viewportState={viewport} onViewportState={setViewport} tooltip={tooltip} onTooltip={setTooltip}
+          onSelection={(pts) => {
+            const r = pts?.[0]; if (!r) return; let best = 0, bd = Infinity;
+            for (let k = 0; k < data.x.length; k++) { const dd = (data.x[k] - r.x) ** 2 + (data.y[k] - r.y) ** 2; if (dd < bd) { bd = dd; best = k; } }
+            const i = data.idx[best]; setUrl((u) => ({ ...u, sel: snap.points.ids[i] })); void loadMeta();
+          }}
+          customOverlay={{ class: CardOverlay, props: { snap, idx: data.idx, scale, xy: { x: data.x, y: data.y }, selected: url.sel, loadMeta } }}
+        />
+      ) : (
+        <CanvasFallback data={data} labels={labels as never} snap={snap} viewport={viewport} onViewport={setViewport}
+          onPick={(row) => { const i = data.idx[row]; setUrl((u) => ({ ...u, sel: snap.points.ids[i] })); void loadMeta(); }} />
+      )}
+      {!gpu && <div className="fallback-note dim small">WebGL fallback: no density terrain or cards in this browser.</div>}
       <TopBar url={url} setUrl={setUrl} snap={snap} onFlyTo={flyTo} />
       <Filters snap={snap} filters={filters} setFilters={setFilters} url={url} setUrl={setUrl} loadMeta={loadMeta} />
       {url.sel && <Inspector snap={snap} xId={url.sel} onClose={() => setUrl((u) => ({ ...u, sel: undefined }))} loadMeta={loadMeta} />}

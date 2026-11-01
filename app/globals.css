@@ -45,3 +45,4 @@ button.link { background: none; border: none; color: #9cc4ff; padding: 0; cursor
 .inspector .x { opacity: .7; }
 .owner { margin-top: 12px; padding-top: 10px; border-top: 1px dashed #2a2f37; }
 .owner button, .owner select, .owner input { background: #15181d; color: #e6e6e6; border: 1px solid #2a2f37; border-radius: 6px; padding: 3px 8px; font: inherit; }
+.fallback-note { position: absolute; right: 12px; bottom: 12px; }
