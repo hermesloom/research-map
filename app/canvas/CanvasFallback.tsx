@@ -28,7 +28,7 @@ export default function CanvasFallback({ data, labels, snap, viewport, onViewpor
       extensions: [new CollisionFilterExtension()], collisionEnabled: true, getCollisionPriority: (l) => l.priority, collisionTestProps: { sizeScale: 1.5 } }),
   ];
   return (
-    <DeckGL views={new OrthographicView({ id: "ortho", flipY: false })} viewState={viewState} controller={true}
+    <DeckGL views={new OrthographicView({ id: "ortho", flipY: false })} viewState={viewState} controller={true} pickingRadius={8}
       onViewStateChange={({ viewState: v }) => { const vs = v as OrthographicViewState; const t = vs.target as number[]; onViewport(toViewport({ target: [t[0], t[1], 0], zoom: vs.zoom as number })); }}
       layers={layers} style={{ position: "absolute", inset: "0", background: "#0b0d10" }} getCursor={({ isHovering }) => (isHovering ? "pointer" : "grab")} />
   );
