@@ -1,0 +1,932 @@
+{
+ "data": [
+  {
+   "author_id": "1852658982608846848",
+   "conversation_id": "2116779609727328366",
+   "created_at": "2026-11-01T06:29:21.000Z",
+   "edit_history_tweet_ids": [
+    "2116779609727328366"
+   ],
+   "entities": {
+    "urls": [
+     {
+      "description": "Before Plato wrote about justice, before Moses carved laws into sto...",
+      "display_url": "youtu.be/j9ZkpMdG1hg",
+      "end": 23,
+      "expanded_url": "https://youtu.be/j9ZkpMdG1hg",
+      "images": [
+       {
+        "height": 720,
+        "url": "https://pbs.twimg.com/news_img/2115058605137575937/zfT3Fyyb?format=jpg&name=orig",
+        "width": 1280
+       },
+       {
+        "height": 150,
+        "url": "https://pbs.twimg.com/news_img/2115058605137575937/zfT3Fyyb?format=jpg&name=150x150",
+        "width": 150
+       }
+      ],
+      "start": 0,
+      "status": 200,
+      "title": "Maat — The African Philosophy The West Doesn’t Want You to Know",
+      "unwound_url": "https://www.youtube.com/watch?v=j9ZkpMdG1hg&feature=youtu.be",
+      "url": "https://t.co/kOA1daDLpg"
+     }
+    ]
+   },
+   "id": "2116779609727328366",
+   "lang": "zxx",
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 0,
+    "like_count": 0,
+    "quote_count": 0,
+    "reply_count": 0,
+    "retweet_count": 0
+   },
+   "text": "https://t.co/kOA1daDLpg"
+  },
+  {
+   "author_id": "1852658982608846848",
+   "conversation_id": "2116779434573262864",
+   "created_at": "2026-11-01T06:28:39.000Z",
+   "edit_history_tweet_ids": [
+    "2116779434573262864"
+   ],
+   "entities": {
+    "mentions": [
+     {
+      "end": 17,
+      "id": "1593171",
+      "start": 3,
+      "username": "threepointone"
+     }
+    ]
+   },
+   "id": "2116779434573262864",
+   "lang": "en",
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 0,
+    "like_count": 0,
+    "quote_count": 0,
+    "reply_count": 0,
+    "retweet_count": 17
+   },
+   "referenced_tweets": [
+    {
+     "id": "2116672356659716605",
+     "type": "retweeted"
+    }
+   ],
+   "text": "RT @threepointone: The “moat” is shorthand for scarcity, and the only thing left to give (and protect!) is your own self of identity. love.…"
+  },
+  {
+   "author_id": "1852658982608846848",
+   "conversation_id": "2116648303148339343",
+   "created_at": "2026-10-31T21:47:35.000Z",
+   "edit_history_tweet_ids": [
+    "2116648303148339343"
+   ],
+   "entities": {
+    "urls": [
+     {
+      "description": "Run XTDB using Docker and connect via a PostgreSQL wire-compatible connection. # latest release, 100% open source (MPL-2.0 license) docker run -p 5432:5432 ghcr.io/xtdb/xtdb # connect via Postgres tooling and drivers, e.g. psql -h localhost xtdb -c \"SELECT 42\" Effective auditability drives trust and learning, supported by: Most systems model the world as it currently is. The history of changes is hard to access and meaningfully query — even basic analysis becomes unreliable when everything is shifting.",
+      "display_url": "xtdb.com",
+      "end": 23,
+      "expanded_url": "https://xtdb.com/",
+      "images": [
+       {
+        "height": 630,
+        "url": "https://pbs.twimg.com/news_img/2116648305253851136/KOV-tDnd?format=jpg&name=orig",
+        "width": 1200
+       },
+       {
+        "height": 150,
+        "url": "https://pbs.twimg.com/news_img/2116648305253851136/KOV-tDnd?format=jpg&name=150x150",
+        "width": 150
+       }
+      ],
+      "start": 0,
+      "status": 200,
+      "title": "XTDB",
+      "unwound_url": "https://xtdb.com/",
+      "url": "https://t.co/L3E7sSq9z0"
+     }
+    ]
+   },
+   "id": "2116648303148339343",
+   "lang": "zxx",
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 1,
+    "like_count": 0,
+    "quote_count": 0,
+    "reply_count": 0,
+    "retweet_count": 0
+   },
+   "text": "https://t.co/L3E7sSq9z0"
+  },
+  {
+   "attachments": {
+    "media_keys": [
+     "3_2116647042587959296"
+    ]
+   },
+   "author_id": "1852658982608846848",
+   "conversation_id": "2116647051207291080",
+   "created_at": "2026-10-31T21:42:37.000Z",
+   "edit_history_tweet_ids": [
+    "2116647051207291080"
+   ],
+   "entities": {
+    "urls": [
+     {
+      "display_url": "pic.x.com/vpuA4oMQp2",
+      "end": 23,
+      "expanded_url": "https://x.com/sigalor/status/2116647051207291080/photo/1",
+      "media_key": "3_2116647042587959296",
+      "start": 0,
+      "url": "https://t.co/vpuA4oMQp2"
+     }
+    ]
+   },
+   "id": "2116647051207291080",
+   "lang": "zxx",
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 1,
+    "like_count": 0,
+    "quote_count": 0,
+    "reply_count": 0,
+    "retweet_count": 0
+   },
+   "text": "https://t.co/vpuA4oMQp2"
+  },
+  {
+   "author_id": "1852658982608846848",
+   "conversation_id": "2116646651016450070",
+   "created_at": "2026-10-31T21:41:01.000Z",
+   "edit_history_tweet_ids": [
+    "2116646651016450070"
+   ],
+   "entities": {
+    "urls": [
+     {
+      "description": "A local-first access control system with capabilities and end-to-end encryption for secure & trusted collaboration.",
+      "display_url": "inkandswitch.com/project/keyhiv…",
+      "end": 23,
+      "expanded_url": "https://www.inkandswitch.com/project/keyhive/",
+      "images": [
+       {
+        "height": 1080,
+        "url": "https://pbs.twimg.com/news_img/2116646656703934464/gYxJk_3S?format=jpg&name=orig",
+        "width": 1920
+       },
+       {
+        "height": 150,
+        "url": "https://pbs.twimg.com/news_img/2116646656703934464/gYxJk_3S?format=jpg&name=150x150",
+        "width": 150
+       }
+      ],
+      "start": 0,
+      "status": 200,
+      "title": "Keyhive",
+      "unwound_url": "https://www.inkandswitch.com/project/keyhive/",
+      "url": "https://t.co/jqkAeWMfgw"
+     }
+    ]
+   },
+   "id": "2116646651016450070",
+   "lang": "zxx",
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 1,
+    "like_count": 0,
+    "quote_count": 0,
+    "reply_count": 0,
+    "retweet_count": 0
+   },
+   "text": "https://t.co/jqkAeWMfgw"
+  },
+  {
+   "author_id": "1852658982608846848",
+   "conversation_id": "2116643323041525859",
+   "created_at": "2026-10-31T21:36:37.000Z",
+   "edit_history_tweet_ids": [
+    "2116645542801572316"
+   ],
+   "entities": {
+    "urls": [
+     {
+      "description": "Type Theory much beyond inference rules",
+      "display_url": "typetheoryforall.com/episodes/the-l…",
+      "end": 23,
+      "expanded_url": "https://www.typetheoryforall.com/episodes/the-lost-elegance-of-computation",
+      "start": 0,
+      "status": 200,
+      "title": "Type Theory Forall",
+      "unwound_url": "https://www.typetheoryforall.com/episodes/the-lost-elegance-of-computation",
+      "url": "https://t.co/Y91vMdMpw4"
+     },
+     {
+      "description": "Type Theory much beyond inference rules",
+      "display_url": "typetheoryforall.com/episodes/denot…",
+      "end": 49,
+      "expanded_url": "https://www.typetheoryforall.com/episodes/denotational-design",
+      "start": 26,
+      "status": 200,
+      "title": "Type Theory Forall",
+      "unwound_url": "https://www.typetheoryforall.com/episodes/denotational-design",
+      "url": "https://t.co/ClEOrqKUKa"
+     }
+    ]
+   },
+   "id": "2116645542801572316",
+   "in_reply_to_user_id": "1852658982608846848",
+   "lang": "zxx",
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 1,
+    "like_count": 0,
+    "quote_count": 0,
+    "reply_count": 0,
+    "retweet_count": 0
+   },
+   "referenced_tweets": [
+    {
+     "id": "2116643323041525859",
+     "type": "replied_to"
+    }
+   ],
+   "text": "https://t.co/Y91vMdMpw4 + https://t.co/ClEOrqKUKa"
+  },
+  {
+   "author_id": "1852658982608846848",
+   "conversation_id": "2116645479652213221",
+   "created_at": "2026-10-31T21:36:22.000Z",
+   "edit_history_tweet_ids": [
+    "2116645479652213221"
+   ],
+   "entities": {
+    "urls": [
+     {
+      "description": "Configuration API for Linux",
+      "display_url": "augeas.net/docs/writing-s…",
+      "end": 23,
+      "expanded_url": "https://augeas.net/docs/writing-schemas.html",
+      "start": 0,
+      "status": 200,
+      "title": "Augeas — Schema tutorial",
+      "unwound_url": "https://augeas.net/docs/writing-schemas.html",
+      "url": "https://t.co/TrjU65ma3B"
+     }
+    ]
+   },
+   "id": "2116645479652213221",
+   "lang": "zxx",
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 1,
+    "like_count": 0,
+    "quote_count": 0,
+    "reply_count": 0,
+    "retweet_count": 0
+   },
+   "text": "https://t.co/TrjU65ma3B"
+  },
+  {
+   "author_id": "1852658982608846848",
+   "conversation_id": "2116640298122309961",
+   "created_at": "2026-10-31T21:15:47.000Z",
+   "edit_history_tweet_ids": [
+    "2116640298122309961"
+   ],
+   "entities": {
+    "urls": [
+     {
+      "display_url": "cs.sfu.ca/~miltner/paper…",
+      "end": 23,
+      "expanded_url": "https://www.cs.sfu.ca/~miltner/papers/optician.pdf",
+      "start": 0,
+      "status": 200,
+      "unwound_url": "https://www.cs.sfu.ca/~miltner/papers/optician.pdf",
+      "url": "https://t.co/vIZSIq0PKt"
+     }
+    ]
+   },
+   "id": "2116640298122309961",
+   "lang": "zxx",
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 1,
+    "like_count": 0,
+    "quote_count": 0,
+    "reply_count": 0,
+    "retweet_count": 0
+   },
+   "text": "https://t.co/vIZSIq0PKt"
+  },
+  {
+   "author_id": "1852658982608846848",
+   "conversation_id": "2116634217824334146",
+   "created_at": "2026-10-31T20:51:37.000Z",
+   "edit_history_tweet_ids": [
+    "2116634217824334146"
+   ],
+   "entities": {
+    "urls": [
+     {
+      "display_url": "sciencedirect.com/science/articl…",
+      "end": 49,
+      "expanded_url": "https://www.sciencedirect.com/science/article/abs/pii/S1355219809000604",
+      "start": 26,
+      "unwound_url": "https://www.sciencedirect.com/science/article/abs/pii/S1355219809000604",
+      "url": "https://t.co/tmvIQoVljB"
+     }
+    ]
+   },
+   "id": "2116634217824334146",
+   "lang": "en",
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 2,
+    "like_count": 0,
+    "quote_count": 0,
+    "reply_count": 0,
+    "retweet_count": 0
+   },
+   "text": "ontic structural realism: https://t.co/tmvIQoVljB"
+  },
+  {
+   "author_id": "1852658982608846848",
+   "conversation_id": "2116630914977366251",
+   "created_at": "2026-10-31T20:38:29.000Z",
+   "edit_history_tweet_ids": [
+    "2116630914977366251"
+   ],
+   "id": "2116630914977366251",
+   "lang": "en",
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 5,
+    "like_count": 0,
+    "quote_count": 0,
+    "reply_count": 0,
+    "retweet_count": 0
+   },
+   "text": "The Yoneda lemma makes the point formally: an object is completely determined by the morphisms into it. There is nothing to an object beyond how things relate to it. That is a mathematical theorem saying “don’t ask what it is, ask what it does.”"
+  },
+  {
+   "author_id": "1852658982608846848",
+   "conversation_id": "2116588634065498207",
+   "created_at": "2026-10-31T19:32:21.000Z",
+   "edit_history_tweet_ids": [
+    "2116614270217543789"
+   ],
+   "entities": {
+    "mentions": [
+     {
+      "end": 12,
+      "id": "1463013786655199234",
+      "start": 0,
+      "username": "codegirl007"
+     }
+    ]
+   },
+   "id": "2116614270217543789",
+   "in_reply_to_user_id": "1463013786655199234",
+   "lang": "en",
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 36,
+    "like_count": 1,
+    "quote_count": 0,
+    "reply_count": 0,
+    "retweet_count": 0
+   },
+   "referenced_tweets": [
+    {
+     "id": "2116588634065498207",
+     "type": "replied_to"
+    }
+   ],
+   "text": "@codegirl007 now you learn category theory"
+  },
+  {
+   "author_id": "1852658982608846848",
+   "conversation_id": "2116610318625571186",
+   "created_at": "2026-10-31T19:16:39.000Z",
+   "edit_history_tweet_ids": [
+    "2116610318625571186"
+   ],
+   "entities": {
+    "urls": [
+     {
+      "display_url": "arxiv.org/pdf/2209.09729",
+      "end": 23,
+      "expanded_url": "https://arxiv.org/pdf/2209.09729",
+      "start": 0,
+      "status": 200,
+      "unwound_url": "https://arxiv.org/pdf/2209.09729",
+      "url": "https://t.co/n7VOCXxHAY"
+     }
+    ]
+   },
+   "id": "2116610318625571186",
+   "lang": "zxx",
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 1,
+    "like_count": 0,
+    "quote_count": 0,
+    "reply_count": 0,
+    "retweet_count": 0
+   },
+   "text": "https://t.co/n7VOCXxHAY"
+  },
+  {
+   "author_id": "1852658982608846848",
+   "conversation_id": "2116439773292409232",
+   "created_at": "2026-10-31T18:12:43.000Z",
+   "edit_history_tweet_ids": [
+    "2116594230789349795"
+   ],
+   "entities": {
+    "mentions": [
+     {
+      "end": 11,
+      "id": "1620810558541815808",
+      "start": 0,
+      "username": "divya_venn"
+     }
+    ]
+   },
+   "id": "2116594230789349795",
+   "in_reply_to_user_id": "1852658982608846848",
+   "lang": "en",
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 6,
+    "like_count": 0,
+    "quote_count": 0,
+    "reply_count": 0,
+    "retweet_count": 0
+   },
+   "referenced_tweets": [
+    {
+     "id": "2116594216251928888",
+     "type": "replied_to"
+    }
+   ],
+   "text": "@divya_venn communicating them. the essence of magic is trying out as many different things as possible, listening to your body (your body, not your mind! there is so much horrific societal programming to work through) and seeing what sticks."
+  },
+  {
+   "author_id": "1852658982608846848",
+   "conversation_id": "2116439773292409232",
+   "created_at": "2026-10-31T18:12:40.000Z",
+   "edit_history_tweet_ids": [
+    "2116594216251928888"
+   ],
+   "entities": {
+    "mentions": [
+     {
+      "end": 11,
+      "id": "1620810558541815808",
+      "start": 0,
+      "username": "divya_venn"
+     }
+    ]
+   },
+   "id": "2116594216251928888",
+   "in_reply_to_user_id": "1620810558541815808",
+   "lang": "en",
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 17,
+    "like_count": 0,
+    "quote_count": 0,
+    "reply_count": 1,
+    "retweet_count": 0
+   },
+   "referenced_tweets": [
+    {
+     "id": "2116439773292409232",
+     "type": "replied_to"
+    }
+   ],
+   "text": "@divya_venn i'm battling with something very similar, and i also work in the financial sector. the overintellectualization, the ancestral protestant work ethic. auditability means feeling safe. only what's recorded is true. bureaucracy runs in the family. but problems are not solved by"
+  },
+  {
+   "author_id": "1852658982608846848",
+   "conversation_id": "2116347667265753233",
+   "created_at": "2026-10-31T17:58:03.000Z",
+   "edit_history_tweet_ids": [
+    "2116590540712022279"
+   ],
+   "entities": {
+    "mentions": [
+     {
+      "end": 10,
+      "id": "18800569",
+      "start": 0,
+      "username": "webmaster"
+     }
+    ]
+   },
+   "id": "2116590540712022279",
+   "in_reply_to_user_id": "18800569",
+   "lang": "en",
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 98,
+    "like_count": 0,
+    "quote_count": 0,
+    "reply_count": 0,
+    "retweet_count": 0
+   },
+   "referenced_tweets": [
+    {
+     "id": "2116347667265753233",
+     "type": "replied_to"
+    }
+   ],
+   "text": "@webmaster look into Project Cybersyn"
+  },
+  {
+   "author_id": "1852658982608846848",
+   "conversation_id": "2116556550013948283",
+   "created_at": "2026-10-31T15:42:59.000Z",
+   "edit_history_tweet_ids": [
+    "2116556550013948283"
+   ],
+   "id": "2116556550013948283",
+   "lang": "en",
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 1,
+    "like_count": 0,
+    "quote_count": 0,
+    "reply_count": 0,
+    "retweet_count": 0
+   },
+   "text": "bicartesian closed category plus recursion schemes"
+  },
+  {
+   "author_id": "1852658982608846848",
+   "conversation_id": "2116446449013579929",
+   "created_at": "2026-10-31T08:25:29.000Z",
+   "edit_history_tweet_ids": [
+    "2116446449013579929"
+   ],
+   "entities": {
+    "mentions": [
+     {
+      "end": 11,
+      "id": "1486017329662423044",
+      "start": 3,
+      "username": "mylifcc"
+     }
+    ]
+   },
+   "id": "2116446449013579929",
+   "lang": "zh",
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 0,
+    "like_count": 0,
+    "quote_count": 0,
+    "reply_count": 0,
+    "retweet_count": 1270
+   },
+   "referenced_tweets": [
+    {
+     "id": "2116002400679113071",
+     "type": "retweeted"
+    }
+   ],
+   "text": "RT @mylifcc: 有人发现了一种非常离谱的 JavaScript 混淆技术：通过在代码里塞入大量生物武器、毒药和致死剂量相关的函数名，让 AI 因为安全限制而拒绝分析代码。\n安全研究员 veritas 在分析浏览器指纹脚本时，发现一段来自 ServicePipe 相关域…"
+  },
+  {
+   "author_id": "1852658982608846848",
+   "conversation_id": "2116260677501460564",
+   "created_at": "2026-10-30T20:07:18.000Z",
+   "edit_history_tweet_ids": [
+    "2116260677501460564"
+   ],
+   "id": "2116260677501460564",
+   "lang": "de",
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 1,
+    "like_count": 0,
+    "quote_count": 0,
+    "reply_count": 0,
+    "retweet_count": 0
+   },
+   "text": "Werkgerechtigkeit hat übrigens ein Erkennungsmerkmal, das du an dir prüfen kannst: Das Unfertige erzeugt Schuld, nicht nur Unruhe. Wenn du einen Tag ohne Fortschritt als Verfehlung buchst, bist du im Werkmodell, nicht im Lernmodell."
+  },
+  {
+   "author_id": "1852658982608846848",
+   "conversation_id": "2116255005145468935",
+   "created_at": "2026-10-30T19:44:46.000Z",
+   "edit_history_tweet_ids": [
+    "2116255005145468935"
+   ],
+   "id": "2116255005145468935",
+   "lang": "en",
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 2,
+    "like_count": 0,
+    "quote_count": 0,
+    "reply_count": 0,
+    "retweet_count": 0
+   },
+   "text": "Quantification becomes most important “where elites are weak, where private negotiation is suspect, and where trust is in short supply.” Furthermore, objectivity refers to “a set of strategies for dealing with distance and distrust.” (Theodore Porter, Trust in Numbers, 1995)"
+  },
+  {
+   "author_id": "1852658982608846848",
+   "conversation_id": "2115931357969105318",
+   "created_at": "2026-10-30T09:13:39.000Z",
+   "edit_history_tweet_ids": [
+    "2116096180094484895"
+   ],
+   "entities": {
+    "mentions": [
+     {
+      "end": 11,
+      "id": "1554202553918935041",
+      "start": 0,
+      "username": "felixringe"
+     }
+    ]
+   },
+   "id": "2116096180094484895",
+   "in_reply_to_user_id": "1852658982608846848",
+   "lang": "en",
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 1,
+    "like_count": 0,
+    "quote_count": 0,
+    "reply_count": 0,
+    "retweet_count": 0
+   },
+   "referenced_tweets": [
+    {
+     "id": "2116096159454576962",
+     "type": "replied_to"
+    }
+   ],
+   "text": "@felixringe and if not, how do we want to reshape it?\""
+  },
+  {
+   "author_id": "1852658982608846848",
+   "conversation_id": "2115703316281778260",
+   "created_at": "2026-10-29T07:12:33.000Z",
+   "edit_history_tweet_ids": [
+    "2115703316281778260"
+   ],
+   "id": "2115703316281778260",
+   "lang": "en",
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 14,
+    "like_count": 1,
+    "quote_count": 0,
+    "reply_count": 0,
+    "retweet_count": 0
+   },
+   "text": "How can we make the structures through which humans coordinate their lives explicit, understandable, interoperable, and changeable, without requiring everyone to agree on one universal representation of reality?"
+  },
+  {
+   "attachments": {
+    "media_keys": [
+     "3_2114307005225549824"
+    ]
+   },
+   "author_id": "1852658982608846848",
+   "conversation_id": "2114307015157940718",
+   "created_at": "2026-10-25T10:44:08.000Z",
+   "edit_history_tweet_ids": [
+    "2114307015157940718"
+   ],
+   "entities": {
+    "urls": [
+     {
+      "display_url": "pic.x.com/BDZLlRlS0R",
+      "end": 23,
+      "expanded_url": "https://x.com/sigalor/status/2114307015157940718/photo/1",
+      "media_key": "3_2114307005225549824",
+      "start": 0,
+      "url": "https://t.co/BDZLlRlS0R"
+     }
+    ]
+   },
+   "id": "2114307015157940718",
+   "lang": "zxx",
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 2,
+    "like_count": 0,
+    "quote_count": 0,
+    "reply_count": 0,
+    "retweet_count": 0
+   },
+   "text": "https://t.co/BDZLlRlS0R"
+  },
+  {
+   "attachments": {
+    "media_keys": [
+     "3_2113703892156321792"
+    ]
+   },
+   "author_id": "1852658982608846848",
+   "conversation_id": "2113704014344806593",
+   "created_at": "2026-10-23T18:48:02.000Z",
+   "edit_history_tweet_ids": [
+    "2113704014344806593"
+   ],
+   "entities": {
+    "urls": [
+     {
+      "description": "A five-week online series with Dougald Hine, author of At Work in the Ruins. Starts 4 & 5 November, 2026.",
+      "display_url": "aschoolcalledhome.org",
+      "end": 23,
+      "expanded_url": "https://aschoolcalledhome.org/",
+      "images": [
+       {
+        "height": 1200,
+        "url": "https://pbs.twimg.com/news_img/2113704027263258624/b9-BHxIp?format=jpg&name=orig",
+        "width": 1200
+       },
+       {
+        "height": 150,
+        "url": "https://pbs.twimg.com/news_img/2113704027263258624/b9-BHxIp?format=jpg&name=150x150",
+        "width": 150
+       }
+      ],
+      "start": 0,
+      "status": 200,
+      "title": "The Storytellers • Ivan Illich & John Berger",
+      "unwound_url": "http://aschoolcalledhome.org/",
+      "url": "https://t.co/ip4B1z5Jy9"
+     },
+     {
+      "display_url": "pic.x.com/szDLz5wvaU",
+      "end": 47,
+      "expanded_url": "https://x.com/sigalor/status/2113704014344806593/photo/1",
+      "media_key": "3_2113703892156321792",
+      "start": 24,
+      "url": "https://t.co/szDLz5wvaU"
+     }
+    ]
+   },
+   "id": "2113704014344806593",
+   "lang": "zxx",
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 3,
+    "like_count": 0,
+    "quote_count": 0,
+    "reply_count": 0,
+    "retweet_count": 0
+   },
+   "text": "https://t.co/ip4B1z5Jy9 https://t.co/szDLz5wvaU"
+  },
+  {
+   "author_id": "1852658982608846848",
+   "conversation_id": "2110261007734251674",
+   "created_at": "2026-10-14T06:46:45.000Z",
+   "edit_history_tweet_ids": [
+    "2110261007734251674"
+   ],
+   "entities": {
+    "urls": [
+     {
+      "display_url": "x.com/felixrieseberg…",
+      "end": 74,
+      "expanded_url": "https://twitter.com/felixrieseberg/status/2110023283169247623",
+      "start": 51,
+      "url": "https://t.co/1SZF3eb8Uf"
+     }
+    ]
+   },
+   "id": "2110261007734251674",
+   "lang": "en",
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 10,
+    "like_count": 0,
+    "quote_count": 0,
+    "reply_count": 0,
+    "retweet_count": 0
+   },
+   "referenced_tweets": [
+    {
+     "id": "2110023283169247623",
+     "type": "quoted"
+    }
+   ],
+   "text": "\"believe a story about cause and effect\", well put https://t.co/1SZF3eb8Uf"
+  },
+  {
+   "author_id": "1852658982608846848",
+   "conversation_id": "1956345982469255638",
+   "created_at": "2025-08-17T01:22:06.000Z",
+   "edit_history_tweet_ids": [
+    "1956889240844820866"
+   ],
+   "entities": {
+    "mentions": [
+     {
+      "end": 11,
+      "id": "14763",
+      "start": 0,
+      "username": "ryancarson"
+     }
+    ]
+   },
+   "id": "1956889240844820866",
+   "in_reply_to_user_id": "14763",
+   "lang": "en",
+   "note_tweet": {
+    "text": "i also don‘t get it. it‘s the same with Facebook, which e.g. people in Scandinavia still use a lot. It would be so simple to set up a vibe-coded frontend and backend which would effectively be identical AND it would need to have automated data import from LinkedIn, FB etc. Open source offensive to all big social media?"
+   },
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 4,
+    "like_count": 0,
+    "quote_count": 0,
+    "reply_count": 0,
+    "retweet_count": 0
+   },
+   "referenced_tweets": [
+    {
+     "id": "1956345982469255638",
+     "type": "replied_to"
+    }
+   ],
+   "text": "@ryancarson i also don‘t get it. it‘s the same with Facebook, which e.g. people in Scandinavia still use a lot. It would be so simple to set up a vibe-coded frontend and backend which would effectively be identical AND it would need to have automated data import from LinkedIn, FB etc. Open"
+  },
+  {
+   "author_id": "1852658982608846848",
+   "conversation_id": "1956259863753056782",
+   "created_at": "2025-08-17T01:11:24.000Z",
+   "edit_history_tweet_ids": [
+    "1956886546378113496"
+   ],
+   "entities": {
+    "mentions": [
+     {
+      "end": 12,
+      "id": "1019566485000347648",
+      "start": 0,
+      "username": "SuhailKakar"
+     }
+    ]
+   },
+   "id": "1956886546378113496",
+   "in_reply_to_user_id": "1019566485000347648",
+   "lang": "en",
+   "note_tweet": {
+    "text": "i have been searching for quite some time, but i haven‘t found a single web3 company worth looking into, and the zk space is not advanced enough yet. all other web3 stuff is effectively just people investing into imaginary units of value, i.e. actually bringing people much further away from „money that works“. After all, there‘s still no core banking platform which is truly rooted in zk-enabled web3. And as long as no real licensed bank is based on such a system, money also won‘t become easier. People always think that making money easier needs innovations, but that‘s not true! It rather needs careful excavation of the structures which form *today‘s* money, and then the engagement and money of many people to create the interface between yesterday‘s money and tomorrow‘s money. No one else will do it for us"
+   },
+   "public_metrics": {
+    "bookmark_count": 0,
+    "impression_count": 9,
+    "like_count": 0,
+    "quote_count": 0,
+    "reply_count": 0,
+    "retweet_count": 0
+   },
+   "referenced_tweets": [
+    {
+     "id": "1956259863753056782",
+     "type": "replied_to"
+    }
+   ],
+   "text": "@SuhailKakar i have been searching for quite some time, but i haven‘t found a single web3 company worth looking into, and the zk space is not advanced enough yet. all other web3 stuff is effectively just people investing into imaginary units of value, i.e. actually bringing people much"
+  }
+ ],
+ "includes": {
+  "media": [
+   {
+    "media_key": "3_2116647042587959296",
+    "type": "photo",
+    "url": "https://pbs.twimg.com/media/HV_XRVBWIAAu6iM.jpg"
+   },
+   {
+    "media_key": "3_2114307005225549824",
+    "type": "photo",
+    "url": "https://pbs.twimg.com/media/HVeHBOiWwAAEonp.jpg"
+   },
+   {
+    "media_key": "3_2113703892156321792",
+    "type": "photo",
+    "url": "https://pbs.twimg.com/media/HVVifbRWkAAyeAf.png"
+   }
+  ]
+ }
+}
