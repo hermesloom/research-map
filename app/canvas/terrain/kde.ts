@@ -11,9 +11,9 @@ export function extentOf(x: ArrayLike<number>, y: ArrayLike<number>) {
   for (let i = 0; i < x.length; i++) { if (x[i] < x0) x0 = x[i]; if (x[i] > x1) x1 = x[i]; if (y[i] < y0) y0 = y[i]; if (y[i] > y1) y1 = y[i]; }
   if (!Number.isFinite(x0)) { x0 = x1 = y0 = y1 = 0; } return { x0, x1, y0, y1, side: Math.max(x1 - x0, y1 - y0) || 1 };
 }
-/** Kernel bandwidth in data units: 2.5 × median NN spacing, clamped to 2–8 % of the larger bounding-box side. Works for any lens geometry. */
+/** Kernel bandwidth in data units: 2.5 × median NN spacing, capped at 8 % of the larger bounding-box side (and floored at 0.5 % of it so coincident points cannot collapse the grid). Works for any lens geometry, including very anisotropic ones. */
 export function chooseSigma(x: ArrayLike<number>, y: ArrayLike<number>): number {
-  const { side } = extentOf(x, y); return Math.min(0.08 * side, Math.max(0.02 * side, 2.5 * medianNN(x, y)));
+  const { side } = extentOf(x, y); return Math.min(0.08 * side, Math.max(0.005 * side, 2.5 * medianNN(x, y)));
 }
 
 export type Field = { values: Float32Array; n: number; m: number; ox: number; oy: number; peak: number };

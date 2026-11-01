@@ -17,11 +17,12 @@ export function isolines(field: Field, levelsAbs: number[]): Ring[][][] {
   const gen = contours().size([field.n, field.m]).smooth(true);
   return levelsAbs.map((lv) => (gen.contour(field.values as unknown as number[], lv).coordinates as unknown as Ring[][]).map((poly) => poly.map((ring) => ring.map(([x, y]) => [x, y] as [number, number]))));
 }
-/** Nested isobands: band i = level-i polygons, with the exterior rings of level i+1 that lie inside added as holes. Rings are shared by reference between neighbouring bands. */
-export function isobands(perLevel: Ring[][][], minAreaCells = 4): BandPolygon[] {
+/** Isobands from per-level isolines. nested = true: band i = level-i polygons with level i+1's exterior rings as holes (rings shared by reference).
+ *  nested = false (cumulative): band i = level-i polygons with only their own holes; drawing level ≥ i over level ≥ i−1 with incremental alphas avoids any cross-level ring mismatch. */
+export function isobands(perLevel: Ring[][][], minAreaCells = 4, nested = true): BandPolygon[] {
   const out: BandPolygon[] = [];
   perLevel.forEach((polys, li) => {
-    const upperOuters = (perLevel[li + 1] ?? []).map((p) => p[0]);
+    const upperOuters = nested ? (perLevel[li + 1] ?? []).map((p) => p[0]) : [];
     for (const poly of polys) {
       const [outer, ...holes] = poly; if (Math.abs(ringArea(outer)) < minAreaCells) continue;
       const inner = upperOuters.filter((u) => u.length > 1 && pointInRing(u[0], outer) || (u.length > 1 && pointInRing(midpoint(u), outer)));

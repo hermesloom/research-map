@@ -1,19 +1,19 @@
 import earcut from "earcut";
 import type { BandPolygon, Ring } from "./isobands";
-import { BAND_ALPHA, LINE_INNER, LINE_OUTER, type RGB, type TerrainMesh, type TerrainStats } from "./types";
+import { LINE_INNER, LINE_OUTER, type RGB, type TerrainMesh, type TerrainStats } from "./types";
 
 export type MeshAccumulator = { positions: number[]; colors: number[]; indices: number[]; lines: number[]; lineColors: number[]; lineWidths: number[] };
 export const newAccumulator = (): MeshAccumulator => ({ positions: [], colors: [], indices: [], lines: [], lineColors: [], lineWidths: [] });
 type ToData = (p: [number, number]) => [number, number];
 
-/** Triangulate one band polygon (outer + holes) with earcut and append premultiplied vertex colours at the band's alpha. Degenerate rings are skipped. */
-export function appendBand(acc: MeshAccumulator, poly: BandPolygon, toData: ToData, rgb: RGB): void {
+/** Triangulate one band polygon (outer + holes) with earcut and append premultiplied vertex colours at `alpha`. Degenerate rings are skipped. */
+export function appendBand(acc: MeshAccumulator, poly: BandPolygon, toData: ToData, rgb: RGB, alpha: number): void {
   const rings = [poly.outer, ...poly.holes].filter((r) => r.length >= 4);
   if (rings.length === 0 || rings[0] !== poly.outer) return;
   const flat: number[] = [], holeIdx: number[] = [];
   rings.forEach((r, k) => { if (k > 0) holeIdx.push(flat.length / 2); for (let q = 0; q < r.length - 1; q++) { const [x, y] = toData(r[q]); flat.push(x, y); } });
   const tri = earcut(flat, holeIdx, 2); if (tri.length === 0) return;
-  const base = acc.positions.length / 2; const a = BAND_ALPHA(poly.band); const c = [Math.round(rgb[0] * a), Math.round(rgb[1] * a), Math.round(rgb[2] * a), Math.round(255 * a)];
+  const base = acc.positions.length / 2; const a = alpha; const c = [Math.round(rgb[0] * a), Math.round(rgb[1] * a), Math.round(rgb[2] * a), Math.round(255 * a)];
   for (let i = 0; i < flat.length; i += 2) { acc.positions.push(flat[i], flat[i + 1]); acc.colors.push(c[0], c[1], c[2], c[3]); }
   for (const ix of tri) acc.indices.push(base + ix);
 }

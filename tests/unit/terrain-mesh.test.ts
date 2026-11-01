@@ -8,13 +8,17 @@ const inTri = (p: [number, number], a: number[], b: number[], c: number[]) => { 
 
 describe("appendBand", () => {
   it("triangulates a square with a square hole: 8 triangles, valid indices, nothing covers the hole centre", () => {
-    const acc = newAccumulator(); appendBand(acc, { outer: sq(0, 0, 10), holes: [sq(4, 4, 2)], band: 1 }, id, [255, 0, 0]);
+    const acc = newAccumulator(); appendBand(acc, { outer: sq(0, 0, 10), holes: [sq(4, 4, 2)], band: 1 }, id, [255, 0, 0], 0.175);
     expect(acc.indices.length / 3).toBe(8); const nv = acc.positions.length / 2; expect(Math.max(...acc.indices)).toBeLessThan(nv);
     for (let t = 0; t < acc.indices.length; t += 3) { const v = (k: number) => [acc.positions[2 * acc.indices[t + k]], acc.positions[2 * acc.indices[t + k] + 1]]; expect(inTri([5, 5], v(0), v(1), v(2))).toBe(false); }
   });
-  it("writes premultiplied vertex colours at the band's alpha", () => {
-    const acc = newAccumulator(); appendBand(acc, { outer: sq(0, 0, 10), holes: [], band: 2 }, id, [200, 100, 0]);   // alpha 0.25
+  it("writes premultiplied vertex colours at the given alpha", () => {
+    const acc = newAccumulator(); appendBand(acc, { outer: sq(0, 0, 10), holes: [], band: 2 }, id, [200, 100, 0], 0.25);
     expect(Array.from(acc.colors.slice(0, 4))).toEqual([50, 25, 0, 64]); expect(acc.colors.length / 4).toBe(acc.positions.length / 2);
+  });
+  it("stacking the incremental band alphas reproduces the cumulative band alphas 0.175 … 0.55 exactly", async () => {
+    const { BAND_ALPHA, BAND_ALPHA_INCREMENT } = await import("@/app/canvas/terrain/types"); let a = 0;
+    for (let b = 1; b <= 6; b++) { const inc = BAND_ALPHA_INCREMENT(b); a = 1 - (1 - a) * (1 - inc); expect(a).toBeCloseTo(BAND_ALPHA(b), 9); }
   });
 });
 describe("appendRingLines", () => {
@@ -26,7 +30,7 @@ describe("appendRingLines", () => {
 });
 describe("finalize", () => {
   it("packs typed arrays and counts", () => {
-    const acc = newAccumulator(); appendBand(acc, { outer: sq(0, 0, 1), holes: [], band: 6 }, id, [1, 2, 3]); appendRingLines(acc, sq(0, 0, 1), id, [1, 2, 3], true);
+    const acc = newAccumulator(); appendBand(acc, { outer: sq(0, 0, 1), holes: [], band: 6 }, id, [1, 2, 3], 0.55); appendRingLines(acc, sq(0, 0, 1), id, [1, 2, 3], true);
     const m = finalize(acc, { categories: 1, ms: 0, sigmaUnits: 0.1 });
     expect(m.triCount).toBe(2); expect(m.segmentCount).toBe(4); expect(m.indices).toBeInstanceOf(Uint32Array); expect(m.stats.triangles).toBe(2); expect(m.stats.segments).toBe(4);
   });

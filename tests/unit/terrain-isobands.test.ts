@@ -20,6 +20,10 @@ describe("isobands", () => {
     for (let i = 0; i < 5; i++) expect(bands[i].holes.length).toBe(1); expect(bands[5].holes.length).toBe(0);
     expect(bands[0].holes[0]).toBe(bands[1].outer);   // the same ring object is shared, so smoothing it once keeps the boundary identical
   });
+  it("cumulative mode keeps only each level's own holes (regions stack instead of nesting)", () => {
+    const f = gaussian(); const bands = isobands(isolines(f, LEVELS.map((l) => l * f.peak)), 4, false);
+    expect(bands.length).toBe(6); for (const b of bands) expect(b.holes.length).toBe(0);
+  });
   it("drops polygons smaller than the minimum area", () => {
     const tiny: Ring = [[0, 0], [0.5, 0], [0.5, 0.5], [0, 0.5], [0, 0]];
     expect(isobands([[[tiny]]], 4)).toEqual([]);

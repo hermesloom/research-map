@@ -17,5 +17,5 @@ export function chaikin(r: Ring, iterations: number): Ring {
   }
   return cur;
 }
-/** simplify 0.2 cell → Chaikin ×2 → simplify 0.1 cell. Tolerances stay small so rings traced separately for neighbouring regions keep (nearly) identical shared boundaries. */
-export function smoothRing(r: Ring): Ring { return simplifyRing(chaikin(simplifyRing(r, 0.2), 2), 0.1); }
+/** Chaikin ×2 (corner cutting keeps a simple ring simple) → simplify 0.15 cell (light, so rings traced separately for neighbouring regions keep nearly identical shared boundaries). */
+export function smoothRing(r: Ring): Ring { return simplifyRing(chaikin(r, 2), 0.15); }

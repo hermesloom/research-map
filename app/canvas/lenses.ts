@@ -59,7 +59,7 @@ export function lensLabels(id: LensId, p: PointsFile, xy: { x: Float32Array; y: 
   const titles = itemLabelsAt(p, xy, ctx.terrainLabels, rows);
   if (id === "terrain") return [...ctx.terrainLabels.filter((l) => l.level !== 2), ...titles];
   if (id === "question") {
-    const { cx, cy, R } = questionGeometry(p); const core = ctx.questions.find((q) => q.parentId === null)?.text ?? "The question";
+    const { cx, cy, R } = questionGeometry(p); const core = "The core question";   // the full question is in the lens description; a one-line label keeps the centre readable
     return [{ x: cx, y: cy, content: core, level: 0, priority: 2000 }, ...[3, 2, 1, 0].map((g) => ({ x: cx, y: cy + (3.5 - g) * R, content: `relevance ${g}`, level: 1, priority: 100 + g })), ...titles];
   }
   let minX = Infinity; for (let i = 0; i < xy.x.length; i++) if (xy.x[i] < minX) minX = xy.x[i]; if (!Number.isFinite(minX)) minX = 0;

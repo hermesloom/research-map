@@ -49,7 +49,21 @@ describe("dominance tiling", () => {
   it("levels are fractions of the global peak of the total density, so a sparse category gets fewer bands than a dense one", () => {
     const a = gauss(400, 0, 0, 0.25, 21), b = gauss(40, 4, 0, 0.25, 22);
     const m = buildTerrain({ x: Float32Array.from([...a.x, ...b.x]), y: Float32Array.from([...a.y, ...b.y]), cat: Uint16Array.from([...Array(400).fill(1), ...Array(40).fill(2)]), catRGB: [[0, 0, 0], [255, 0, 0], [0, 0, 255]] });
-    const alphas = (pred: (v: number) => boolean) => { const s = new Set<number>(); for (let v = 0; v < m.positions.length / 2; v++) if (pred(v)) s.add(m.colors[4 * v + 3]); return s.size; };
+    const alphas = (pred: (v: number) => boolean) => { const s = new Set<number>(); for (let v = 0; v < m.positions.length / 2; v++) if (pred(v)) s.add(m.colors[4 * v + 3]); return s.size; };   // distinct incremental alphas = number of levels reached
     expect(alphas((v) => m.colors[4 * v] > 0)).toBeGreaterThan(alphas((v) => m.colors[4 * v + 2] > 0));
+  });
+});
+
+describe("mass-based levels", () => {
+  it("hdrLevels of a single Gaussian field match the classic fraction-of-peak levels within a few percent", async () => {
+    const { hdrLevels } = await import("@/app/canvas/terrain/build"); const { densityField } = await import("@/app/canvas/terrain/kde");
+    const f = densityField([5], [5], 10, 8); const lv = hdrLevels(f.values, [0.94, 0.86, 0.74, 0.58, 0.38, 0.15]); const classic = [0.06, 0.14, 0.26, 0.42, 0.62, 0.85];
+    lv.forEach((L, i) => expect(Math.abs(L / f.peak - classic[i])).toBeLessThan(0.06));
+  });
+  it("a tiny very dense spike does not erase the bands of a broad category", () => {
+    const broad = gauss(400, 0, 0, 0.6, 31); const spike = gauss(200, 5, 0, 0.03, 32);
+    const m = buildTerrain({ x: Float32Array.from([...broad.x, ...spike.x]), y: Float32Array.from([...broad.y, ...spike.y]), cat: Uint16Array.from([...Array(400).fill(1), ...Array(200).fill(2)]), catRGB: [[0, 0, 0], [255, 0, 0], [0, 0, 255]] });
+    const redAlphas = new Set<number>(); for (let v = 0; v < m.positions.length / 2; v++) if (m.colors[4 * v] > 0) redAlphas.add(m.colors[4 * v + 3]);
+    expect(redAlphas.size).toBeGreaterThanOrEqual(3);
   });
 });
