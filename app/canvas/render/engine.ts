@@ -1,4 +1,4 @@
-import { project, unproject, zoomAt, fitCamera, type Camera, type Viewport } from "./camera";
+import { project, unproject, zoomAt, fitCamera, clampScale, type Camera, type Viewport } from "./camera";
 import { placeLabels, type LabelIn } from "./labels";
 import { rasterSpec, medianSpacing } from "./density";
 import { computeDensityGrid, marchingSquares, bandLevels, bandOf } from "./contours";
@@ -12,7 +12,7 @@ export type EngineOpts = { onCamera?: (c: Camera) => void; onPick?: (row: number
 /** Plain Canvas 2D map renderer: terrain raster + points + rings + collision-placed labels. No GPU API dependency. */
 export class MapEngine {
   private ctx: CanvasRenderingContext2D; private vp: Viewport = { w: 800, h: 600 }; private dpr = 1;
-  private cam: Camera = { x: 0, y: 0, scale: 1 }; private fitScale = 1;
+  private cam: Camera = { x: 0, y: 0, scale: 1 }; private fitScale = 0;
   private data: EngineData | null = null; private pos: { x: Float32Array; y: Float32Array } | null = null;
   private tweenFrom: { x: Float32Array; y: Float32Array } | null = null; private tweenTo: { x: Float32Array; y: Float32Array } | null = null; private tweenT0 = 0;
   private labels: LabelIn[] = []; private selected = -1; private dirty = true; private raf = 0; private destroyed = false;
@@ -24,7 +24,7 @@ export class MapEngine {
   constructor(private canvas: HTMLCanvasElement, private opts: EngineOpts = {}) {
     this.ctx = canvas.getContext("2d", { alpha: false })!;
     this.proxy = { location: (x: number, y: number) => project(this.cam, this.vp, x, y), get width() { return 0; }, get height() { return 0; } };
-    Object.defineProperty(this.proxy, "width", { get: () => this.vp.w }); Object.defineProperty(this.proxy, "height", { get: () => this.vp.h }); Object.defineProperty(this.proxy, "zoomRel", { get: () => this.cam.scale / this.fitScale });
+    Object.defineProperty(this.proxy, "width", { get: () => this.vp.w }); Object.defineProperty(this.proxy, "height", { get: () => this.vp.h }); Object.defineProperty(this.proxy, "zoomRel", { get: () => this.cam.scale / (this.fitScale || 1) });
     canvas.style.touchAction = "none"; canvas.style.cursor = "grab";
     canvas.addEventListener("pointerdown", this.onDown); canvas.addEventListener("pointermove", this.onMove); canvas.addEventListener("pointerup", this.onUp); canvas.addEventListener("pointercancel", this.onUp);
     canvas.addEventListener("wheel", this.onWheel, { passive: false }); canvas.addEventListener("dblclick", this.onDbl);
@@ -49,8 +49,8 @@ export class MapEngine {
   }
   setLabels(l: LabelIn[]) { this.labels = l; this.dirty = true; }
   setSelected(row: number) { this.selected = row; this.dirty = true; }
-  setCamera(c: Camera) { this.cam = c; this.dirty = true; this.opts.onCamera?.(c); }
-  flyTo(x: number, y: number, scale?: number) { this.setCamera({ x, y, scale: scale ?? Math.max(this.cam.scale, this.fitScale * 8) }); }
+  setCamera(c: Camera) { this.cam = this.fitScale > 0 ? { ...c, scale: clampScale(c.scale, this.fitScale) } : c; this.dirty = true; this.opts.onCamera?.(this.cam); }
+  flyTo(x: number, y: number, scale?: number) { this.setCamera({ x, y, scale: scale ?? Math.max(this.cam.scale, this.fitScale * 10) }); }
   fit() { if (this.pos) this.setCamera(fitCamera(this.pos.x, this.pos.y, this.vp, 0.85)); }
   destroy() {
     this.destroyed = true; cancelAnimationFrame(this.raf); if (this.terrainTimer) clearTimeout(this.terrainTimer);
@@ -130,11 +130,11 @@ export class MapEngine {
     const d = this.data, pos = this.pos; if (!d || !pos) return; const cam = this.cam;
     // terrain fades out as you zoom in (points take over)
     if (this.terrain) {
-      const T = this.terrain; const alpha = Math.max(0, Math.min(1, 1 - (cam.scale / this.fitScale - 2.5) / 5));
+      const T = this.terrain; const alpha = Math.max(0, Math.min(1, 1 - (cam.scale / (this.fitScale || 1) - 2.5) / 5));
       if (alpha > 0) { const a = project(cam, this.vp, T.x0, T.y1), b = project(cam, this.vp, T.x1, T.y0); ctx.globalAlpha = alpha; ctx.imageSmoothingEnabled = true; ctx.drawImage(T.canvas, a.x, a.y, b.x - a.x, b.y - a.y); ctx.globalAlpha = 1; }
     }
     // points, batched by colour
-    const radius = Math.min(7, 3 + Math.log2(Math.max(1, cam.scale / this.fitScale)) * 0.8); const groups = new Map<string, Path2D>(); const pad = radius + 2;
+    const radius = Math.min(7, 3 + Math.log2(Math.max(1, cam.scale / (this.fitScale || 1))) * 0.8); const groups = new Map<string, Path2D>(); const pad = radius + 2;
     for (let i = 0; i < pos.x.length; i++) {
       const X = w / 2 + (pos.x[i] - cam.x) * cam.scale, Y = h / 2 - (pos.y[i] - cam.y) * cam.scale; if (X < -pad || Y < -pad || X > w + pad || Y > h + pad) continue;
       let path = groups.get(d.color[i]); if (!path) { path = new Path2D(); groups.set(d.color[i], path); } path.moveTo(X + radius, Y); path.arc(X, Y, radius, 0, Math.PI * 2);
@@ -147,7 +147,7 @@ export class MapEngine {
     ctx.strokeStyle = "rgba(255,255,255,0.8)"; for (let i = 0; i < pos.x.length; i++) if (d.provisional[i]) { const p = project(cam, this.vp, pos.x[i], pos.y[i]); if (p.x < -20 || p.y < -20 || p.x > w + 20 || p.y > h + 20) continue; ctx.beginPath(); ctx.arc(p.x, p.y, radius + 3.5, 0, Math.PI * 2); ctx.stroke(); }
     if (this.selected >= 0 && this.selected < pos.x.length) { const p = project(cam, this.vp, pos.x[this.selected], pos.y[this.selected]); ctx.strokeStyle = "#9cc4ff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, radius + 9, 0, Math.PI * 2); ctx.stroke(); ctx.lineWidth = 1.2; }
     // labels
-    const placed = placeLabels(this.labels, cam, this.vp, (t, px) => this.measure(t, px), cam.scale / this.fitScale);
+    const placed = placeLabels(this.labels, cam, this.vp, (t, px) => this.measure(t, px), cam.scale / (this.fitScale || 1));
     ctx.textBaseline = "middle"; ctx.textAlign = "center"; ctx.lineJoin = "round";
     for (const l of placed) {
       ctx.font = `${l.level === 0 ? "600 " : ""}${l.px}px system-ui, sans-serif`; const cx = l.x + l.w / 2, cy = l.y + l.h / 2;

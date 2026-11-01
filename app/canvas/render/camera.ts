@@ -15,3 +15,5 @@ export function fitCamera(x: ArrayLike<number>, y: ArrayLike<number>, vp: Viewpo
   const sx = (vp.w * fill) / ((xmax - xmin) || 1), sy = (vp.h * fill) / ((ymax - ymin) || 1);
   return { x: (xmin + xmax) / 2, y: (ymin + ymax) / 2, scale: Math.min(sx, sy) };
 }
+/** Keep zoom within a useful range of the fitted view (0.25× … 80×) so nobody gets lost in empty space. */
+export const clampScale = (scale: number, fitScale: number) => Math.min(fitScale * 80, Math.max(fitScale * 0.25, scale));

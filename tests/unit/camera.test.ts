@@ -16,3 +16,10 @@ describe("camera", () => {
     expect(c.x).toBe(5); expect(c.y).toBe(2.5); expect(c.scale).toBeCloseTo((800 * 0.9) / 10, 6);
   });
 });
+
+import { clampScale } from "@/app/canvas/render/camera";
+describe("clampScale", () => {
+  it("bounds zoom relative to the fitted scale: 0.25× … 80×", () => {
+    expect(clampScale(1, 10)).toBe(2.5); expect(clampScale(5000, 10)).toBe(800); expect(clampScale(100, 10)).toBe(100);
+  });
+});
