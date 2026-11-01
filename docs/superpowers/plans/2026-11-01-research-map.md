@@ -57,12 +57,13 @@ research-map/
     canvas/lenses.ts                                      # terrain | questionRadial | timeStrata coordinate functions
     canvas/colors.ts                                      # leaf palette + grade alpha → categoryColors
     canvas/CardOverlay.ts                                 # customOverlay class: DOM cards (z3), rings, arrival trail
-    canvas/TopBar.tsx  canvas/Inspector.tsx  canvas/Filters.tsx  canvas/urlState.ts  canvas/export.ts
+    canvas/TopBar.tsx  canvas/Inspector.tsx  canvas/Filters.tsx  canvas/OwnerControls.tsx  canvas/CanvasFallback.tsx
+    canvas/urlState.ts  canvas/export.ts  canvas/webgpu.ts  canvas/overlayLogic.ts  canvas/histogram.ts
     api/manifest/route.ts  api/posts/route.ts  api/status/route.ts  api/search/route.ts
     api/cron/ingest/route.ts
     api/owner/login/route.ts  api/owner/override/route.ts
   lib/
-    env.ts  types.ts  db.ts  hash.ts  blob.ts
+    env.ts  types.ts  db.ts  hash.ts  blob.ts  ownerAuth.ts
     x/oauth1.ts  x/client.ts  x/parse.ts
     enrich/router.ts  enrich/types.ts  enrich/wikipedia.ts  enrich/youtube.ts  enrich/arxiv.ts
     enrich/openalex.ts  enrich/github.ts  enrich/firecrawl.ts  enrich/wayback.ts  enrich/ladder.ts  enrich/vision.ts
@@ -70,12 +71,12 @@ research-map/
     place.ts  snapshot.ts  publish.ts  overrides.ts
     pipeline/stages.ts  pipeline/run.ts  pipeline/reconcile.ts
   scripts/
-    bootstrap.ts  seed-questions.ts  make-fixture.ts  trigger-batch.ts
+    bootstrap.ts  bootstrap-lib.ts  seed-questions.ts  make-fixture.ts  fixture-snapshot.ts  trigger-batch.ts
   data/
     anchors.json  label-overrides.json
   batch/
     pyproject.toml  README.md
-    research_map_batch/__init__.py  db.py  layout.py  cluster.py  label.py  questions.py  hulls.py  thumbs.py  write.py  main.py
+    research_map_batch/__init__.py  db.py  layout.py  cluster.py  label.py  questions.py  trails.py  hulls.py  write.py  main.py
     tests/test_layout.py  tests/test_cluster.py  tests/test_label.py  tests/test_write.py
   tests/
     fixtures/timeline-sample.json  fixtures/enrich/*.json  fixtures/x-oauth-vector.json
@@ -1065,7 +1066,7 @@ export async function waybackUrl(url: string, ctx: AdapterCtx): Promise<string |
   return j.archived_snapshots?.closest?.available ? j.archived_snapshots.closest.url ?? null : null;
 }
 // lib/enrich/ladder.ts
-import type { AdapterCtx, Fetched } from "./types"; import { routeHost, domainWords } from "./router";
+import type { AdapterCtx, Fetched } from "./types"; import { routeHost } from "./router";
 import { fetchWikipedia } from "./wikipedia"; import { fetchYoutube } from "./youtube"; import { fetchGithub } from "./github";
 import { fetchArxiv } from "./arxiv"; import { fetchOpenAlex } from "./openalex"; import { fetchFirecrawl, QuotaExhausted } from "./firecrawl"; import { waybackUrl } from "./wayback";
 
@@ -1096,8 +1097,6 @@ export async function enrichUrl(url: string, ctx: AdapterCtx): Promise<Fetched &
   return thinRecord(url);
 }
 ```
-Add to `lib/enrich/router.ts`: `export function domainWords(url: string) { ... }` is **not** needed — remove that import; `thinRecord` is self-contained. (Keep the file compiling: do not import `domainWords`.)
-
 Note on the paywall test: the ladder tries Firecrawl before OpenAlex for `doi` hosts? No — for `host === "doi"` OpenAlex is first (free), Firecrawl second. The "paywalled generic page" test passes because `dl.acm.org/doi/...` routes to `doi`.
 
 - [ ] **Step 5: Run** → PASS
@@ -1710,12 +1709,15 @@ d("runDaily", () => {
     const after = await dbmod.collections(db).items.find({}, { projection: { xId: 1, stage: 1 } }).toArray(); expect(after).toEqual(before);
   });
   it("places and grades once a published layout exists", async () => {
-    const { layouts, items } = dbmod.collections(db);
-    await layouts.insertOne({ version: 1, createdAt: new Date(), method: "test", status: "published", points: [], labels: [], themes: [], clusters: [], hulls: [], procrustesResidual: 0 } as any);
+    const { layouts, items, vectors, relations } = dbmod.collections(db);
+    // simulate the batch job: a published layout that already holds every embedded item
+    const embedded = await items.find({ stage: "embedded" }).toArray();
+    await layouts.insertOne({ version: 1, createdAt: new Date(), method: "test", status: "published", procrustesResidual: 0, labels: [], themes: [], clusters: [], hulls: [],
+      points: embedded.map((it, i) => ({ xId: it.xId, x: i, y: 0, clusterId: 0, provisional: false })) } as any);
     const run = await mod.runDaily(db, { ...fakeDeps(), fetchNewPosts: async () => ({ payload: { data: [] }, requests: 1 }) } as any);
-    expect(run.ok).toBe(true); expect(await items.countDocuments({ stage: "embedded" })).toBe(0);
-    const graded = await items.countDocuments({ stage: "graded", kind: { $nin: ["replyToOther", "retweet"] } }); expect(graded).toBeGreaterThan(0);
-    const l = await layouts.findOne({ version: 1 }); expect(l!.points.length).toBe(await items.countDocuments({ stage: "graded", kind: { $nin: ["replyToOther", "retweet"] }, "enrichment.needsContent": { $ne: true } }) - 0 /* photo-only items with OCR text are placed too */);
+    expect(run.ok).toBe(true); expect(await items.countDocuments({ stage: "embedded" })).toBe(0); expect(await items.countDocuments({ stage: "placed" })).toBe(0);
+    expect(await relations.countDocuments({ questionId: "core" })).toBe(embedded.filter((it) => !it.isResearchQuestion).length);
+    expect(await vectors.countDocuments({})).toBe(embedded.length); expect(run.counts.published).toBeGreaterThan(0);
   });
   it("excludes replies to others and retweets from enrichment", async () => {
     const { enrichment, items } = dbmod.collections(db);
@@ -1728,8 +1730,6 @@ d("runDaily", () => {
   });
 });
 ```
-(The `l!.points.length` assertion is simpler to state as: equals the number of items at stage `graded` that have a vector — use `vectors.countDocuments({})` instead; implement that form.)
-
 - [ ] **Step 3: Run** → FAIL
 
 - [ ] **Step 4: Write `lib/pipeline/stages.ts`**
@@ -1753,7 +1753,7 @@ export async function stageEnrich(d: StageDeps, limit: number) {
   for (const it of todo) {
     try {
       let doc: Record<string, unknown> = { xId: it.xId, source: "none", thin: true, needsContent: false, fetchedAt: d.now() };
-      const url = it.urls.find((u) => !u.isMedia)?.expandedUrl; const img = it.media.find((m) => m.type === "photo")?.url ?? it.media[0]?.previewUrl;
+      const url = it.urls.find((u) => !u.isMedia && !/^(x|twitter)\.com$/.test(u.domain))?.expandedUrl; const img = it.media.find((m) => m.type === "photo")?.url ?? it.media[0]?.previewUrl;
       if (url) { const f = await d.enrichUrl(url, { fetchImpl: d.fetchImpl, firecrawlKey: env().FIRECRAWL_API_KEY, userAgent: UA });
         if ((f as any).deferred) { out.deferred++; continue; }
         doc = { ...doc, source: f.source, title: f.title, excerpt: f.excerpt, ogImage: f.ogImage, thin: f.thin }; }
@@ -1832,7 +1832,7 @@ export async function watermark(db: Db): Promise<string | undefined> {
 }
 export async function ingestNew(db: Db, deps: { fetchNewPosts: typeof fetchNewPosts; now: () => Date }, opts: { sinceId?: string; startTime?: string } = {}) {
   const c = collections(db); const sinceId = opts.sinceId ?? (await watermark(db));
-  if (!sinceId && !opts.startTime) return { inserted: 0, requests: 0 }; // never sweep an empty DB from the cron; bootstrap handles that
+  // No early return on an empty database: fetchNewPosts' billing guard throws without since_id/start_time, so an empty production DB fails loudly instead of sweeping. Bootstrap populates first.
   const { payload, requests } = await deps.fetchNewPosts({ sinceId, startTime: opts.startTime });
   const items = parseTimeline(payload, env().X_USER_ID, env().RESEARCH_QUESTION_POST_ID); let inserted = 0;
   for (const it of items) { const r = await c.items.updateOne({ xId: it.xId }, { $setOnInsert: it }, { upsert: true }); if (r.upsertedCount) inserted++; }
@@ -1923,7 +1923,8 @@ export const dynamic = "force-dynamic"; export const maxDuration = 300;
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET; const auth = request.headers.get("authorization");
   if (!secret || auth !== `Bearer ${secret}`) return new Response("unauthorized", { status: 401 });
-  const db = await getDb(); const run = await runDaily(db, {});
+  const force = new URL(request.url).searchParams.get("force") === "1";
+  const db = await getDb(); const run = await runDaily(db, { force });
   if (new Date().getUTCDay() === 0) { try { await reconcileDeletions(db, {}); } catch (e) { run.notes.push(`reconcile failed: ${String(e).slice(0, 200)}`); } }
   if (run.notes.includes("relayoutRecommended") && process.env.GITHUB_DISPATCH_TOKEN) {
     await fetch(`https://api.github.com/repos/${env().GITHUB_REPO}/dispatches`, { method: "POST", headers: { Authorization: `Bearer ${process.env.GITHUB_DISPATCH_TOKEN}`, Accept: "application/vnd.github+json", "User-Agent": "research-map" }, body: JSON.stringify({ event_type: "relayout" }) }).catch(() => {});
@@ -2637,13 +2638,13 @@ describe("lenses", () => {
     const d = (i: number) => Math.hypot(r.x[i] - cx, r.y[i] - cy);
     expect(d(1)).toBeLessThan(d(2)); expect(d(2)).toBeLessThan(d(3));
   });
-  it("question lens preserves angular order from terrain", () => {
-    const r = questionXY(p, "q"); const ang = (x: number, y: number) => Math.atan2(y, x);
-    expect(Math.sign(ang(r.x[1] - r.x[0], r.y[1] - r.y[0]))).toBe(Math.sign(ang(1, 0)) || 1);
+  it("question lens preserves each point's angle around the terrain centroid", () => {
+    const r = questionXY(p, "q"); const cx = r.x[0], cy = r.y[0];            // centre item sits at the terrain centroid (0, 0.5)
+    expect(Math.atan2(r.y[1] - cy, r.x[1] - cx)).toBeCloseTo(Math.atan2(0 - 0.5, 1 - 0), 5);
   });
   it("time lens orders x by month and rows by sub-question", () => {
     const r = timeXY(p, [null, "s1", "s2", null], ["s1", "s2"]);
-    expect(r.x[1]).toBeLessThan(r.x[2]); expect(r.y[1]).not.toBeCloseTo(r.y[2], 0); expect(r.x[2]).toBeCloseTo(r.x[3], 0);
+    expect(r.x[1]).toBeLessThan(r.x[2]); expect(r.y[1]).toBeGreaterThan(r.y[2]); expect(Math.abs(r.x[2] - r.x[3])).toBeLessThan(Math.log1p(2) + 1e-9); // same month bin
   });
   it("tween eases between arrays", () => {
     const a = new Float32Array([0, 0]), b = new Float32Array([10, 20]), out = new Float32Array(2);
@@ -2762,7 +2763,7 @@ export interface Snapshot { points: PointsFile; labels: LabelsFile; meta: MetaFi
 export function useSnapshot() {
   const [snap, setSnap] = useState<Snapshot | null>(null); const [error, setError] = useState<string | null>(null); const metaP = useRef<Promise<MetaFile> | null>(null);
   useEffect(() => { (async () => { try {
-    const manifest: Manifest = await (await fetch("/api/manifest")).json(); if ((manifest as any).error) throw new Error((manifest as any).error);
+    const manifest: Manifest = await (await fetch(process.env.NEXT_PUBLIC_DEV_MANIFEST ?? "/api/manifest")).json(); if ((manifest as any).error) throw new Error((manifest as any).error);
     const [points, labels] = await Promise.all([fetch(manifest.pointsUrl).then((r) => r.json()), fetch(manifest.labelsUrl).then((r) => r.json())]);
     setSnap({ points, labels, meta: null, manifest });
   } catch (e) { setError(String(e)); } })(); }, []);
@@ -2829,8 +2830,8 @@ export default function Canvas() {
     <EmbeddingView data={{ x: data.x, y: data.y, category: data.category }} categoryColors={COLORS} labels={labels} width={size.w} height={size.h}
       config={{ colorScheme: "dark", mode: scale < 1.5 && url.lens === "terrain" ? "density" : "points", minimumDensity: 0.002, autoLabelEnabled: false }}
       viewportState={viewport} onViewportState={setViewport} tooltip={tooltip} onTooltip={setTooltip}
-      onSelection={(pts) => { const r = pts?.[0]; if (!r) return; const i = data.idx[Number(r.identifier ?? data.x.indexOf(r.x))]; setUrl((u) => ({ ...u, sel: snap.points.ids[i] })); loadMeta(); }}
-      customOverlay={{ class: CardOverlay, props: { snap, idx: data.idx, scale, selected: url.sel, loadMeta } }} />
+      onSelection={(pts) => { const r = pts?.[0]; if (!r) return; let best = 0, bd = Infinity; for (let k = 0; k < data.x.length; k++) { const dd = (data.x[k] - r.x) ** 2 + (data.y[k] - r.y) ** 2; if (dd < bd) { bd = dd; best = k; } } const i = data.idx[best]; setUrl((u) => ({ ...u, sel: snap.points.ids[i] })); loadMeta(); }}
+      customOverlay={{ class: CardOverlay, props: { snap, idx: data.idx, scale, xy: { x: data.x, y: data.y }, selected: url.sel, loadMeta } }} />
     <TopBar url={url} setUrl={setUrl} snap={snap} onFlyTo={(i) => { setViewport({ x: xy!.x[i], y: xy!.y[i], scale: 6 }); }} />
     <Filters snap={snap} filters={filters} setFilters={setFilters} url={url} setUrl={setUrl} loadMeta={loadMeta} />
     {url.sel && <Inspector snap={snap} xId={url.sel} onClose={() => setUrl((u) => ({ ...u, sel: undefined }))} loadMeta={loadMeta} />}
@@ -2859,7 +2860,7 @@ import { visibleRows, newestRows, cardHtml } from "@/app/canvas/overlayLogic";
 describe("overlay logic", () => {
   it("visibleRows keeps in-viewport rows nearest centre first, capped", () => {
     const xs = new Float32Array([0, 1, 50, 2]), ys = new Float32Array([0, 1, 50, 2]); const proj = (x: number, y: number) => ({ x: x * 10, y: y * 10 });
-    expect(visibleRows(xs, ys, proj, 100, 100, 2)).toEqual([0, 1]);   // row 2 is off-screen (500,500); cap 2 drops row 3
+    expect(visibleRows(xs, ys, proj, 100, 100, 2)).toEqual([3, 1]);   // row 2 is off-screen (500,500); nearest to centre (50,50) first: row 3 (20,20), row 1 (10,10); cap 2 drops row 0
   });
   it("newestRows picks most recent createdAt among idx", () => { const p: any = { createdAt: [1, 5, 3, 9] }; expect(newestRows(p, [0, 1, 2, 3], 2)).toEqual([3, 1]); });
   it("cardHtml escapes and includes the X display minimum", () => {
@@ -2909,7 +2910,7 @@ export class CardOverlay {
   destroy() { this.target.innerHTML = ""; }
 }
 ```
-Pass `xy` from `Canvas.tsx` into the overlay props (`props: { snap, idx: data.idx, scale, xy: { x: data.x, y: data.y }, selected: url.sel, loadMeta }`). Add card CSS to `globals.css` (`.card{background:#15181d;border:1px solid #2a2f37;border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.35} .card.g1{opacity:.7} .card.g0{opacity:.5} .card.provisional{border-style:dashed} .card .t{font-weight:600;margin-bottom:4px} .card .m{opacity:.7;margin-top:4px;display:flex;gap:8px} .card .x{opacity:.6;margin-top:4px} .card a{color:#9cc4ff}`).
+Add card CSS to `globals.css` (`.card{background:#15181d;border:1px solid #2a2f37;border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.35} .card.g1{opacity:.7} .card.g0{opacity:.5} .card.provisional{border-style:dashed} .card .t{font-weight:600;margin-bottom:4px} .card .m{opacity:.7;margin-top:4px;display:flex;gap:8px} .card .x{opacity:.6;margin-top:4px} .card a{color:#9cc4ff}`).
 
 - [ ] **Step 4: Run** → PASS; `pnpm typecheck`; visually confirm rings/cards at zoom in `pnpm dev`.
 - [ ] **Step 5: Commit** — `git add app/canvas app/globals.css tests/unit/overlayLogic.test.ts && git commit -m "feat(canvas): DOM cards, provisional rings, arrival trail overlay"`
