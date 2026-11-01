@@ -53,7 +53,7 @@ export function tween(a: Float32Array, b: Float32Array, t: number, out: Float32A
   for (let i = 0; i < a.length; i++) out[i] = a[i] + (b[i] - a[i]) * e; return out;
 }
 
-export type LensLabel = { x: number; y: number; content: string | { image: string; width: number; height: number }; level: number; priority: number; align?: "center" | "right" | "left"; px?: number };
+export type LensLabel = { x: number; y: number; content: string | { image: string; width: number; height: number }; level: number; priority: number; align?: "center" | "right" | "left"; px?: number; row?: number };
 /** Labels for the active lens. Terrain uses the batch job's labels; the other lenses label their own geometry. */
 export function lensLabels(id: LensId, p: PointsFile, xy: { x: Float32Array; y: Float32Array }, ctx: { questions: { id: string; text: string; parentId: string | null }[]; subOrder: string[]; terrainLabels: LensLabel[] }, rows?: number[]): LensLabel[] {
   const titles = itemLabelsAt(p, xy, ctx.terrainLabels, rows);
@@ -70,10 +70,12 @@ export function lensLabels(id: LensId, p: PointsFile, xy: { x: Float32Array; y: 
 /** Per-post labels (level 2) are stored at terrain coordinates; re-anchor them to the post's position in the active lens by matching the terrain coordinate, and keep only the visible rows (all rows when `rows` is omitted). */
 export function itemLabelsAt(p: PointsFile, xy: { x: Float32Array; y: Float32Array }, terrainLabels: LensLabel[], rows?: number[]): LensLabel[] {
   const byPos = new Map<string, number>(); for (let i = 0; i < p.count; i++) byPos.set(`${p.x[i]},${p.y[i]}`, i);
-  const visible = rows ? new Set(rows) : null; const out: LensLabel[] = [];
-  for (const l of terrainLabels) { if (l.level !== 2) continue; const i = byPos.get(`${l.x},${l.y}`); if (i === undefined || (visible && !visible.has(i))) continue; out.push({ ...l, x: xy.x[i], y: xy.y[i] }); }
+  const rowOf = rows ? new Map(rows.map((i, r) => [i, r])) : null; const out: LensLabel[] = [];
+  for (const l of terrainLabels) { if (l.level !== 2) continue; const i = byPos.get(`${l.x},${l.y}`); if (i === undefined) continue; const r = rowOf ? rowOf.get(i) : i; if (r === undefined) continue; out.push({ ...l, x: xy.x[i], y: xy.y[i], row: r }); }
   return out;
 }
+/** Positions of the structural (non-title) labels; the camera fit includes them so e.g. time-lens row labels are in view. */
+export function lensAnchors(labels: LensLabel[]): { x: number; y: number }[] { return labels.filter((l) => l.level !== 2).map((l) => ({ x: l.x, y: l.y })); }
 
 /** Walk an (induced) sub-question up to its seed (direct child of core); null when unknown. */
 export function primarySeed(id: string | null, questions: { id: string; parentId: string | null }[]): string | null {

@@ -36,3 +36,20 @@ describe("buildTerrain", () => {
     expect(m.stats.categories).toBe(50); expect(ms).toBeLessThan(5000);
   });
 });
+
+describe("dominance tiling", () => {
+  it("two overlapping categories tile the terrain: each region is coloured by the locally dominant category, no band straddles the boundary", () => {
+    const a = gauss(300, 0, 0, 0.3, 11), b = gauss(300, 0.6, 0, 0.3, 12);
+    const m = buildTerrain({ x: Float32Array.from([...a.x, ...b.x]), y: Float32Array.from([...a.y, ...b.y]), cat: Uint16Array.from([...Array(300).fill(1), ...Array(300).fill(2)]), catRGB: [[0, 0, 0], [255, 0, 0], [0, 0, 255]] });
+    expect(m.stats.categories).toBe(2); const nv = m.positions.length / 2; let red = 0, blue = 0;
+    // near the axis through both centres the boundary is at x ≈ 0.3 (sampling noise moves it a little; the tails are not checked)
+    for (let v = 0; v < nv; v++) { const x = m.positions[2 * v], yv = m.positions[2 * v + 1]; if (Math.abs(yv) > 0.25) continue; if (m.colors[4 * v] > 0) { red++; expect(x).toBeLessThan(0.3 + 0.15); } else { blue++; expect(x).toBeGreaterThan(0.3 - 0.15); } }
+    expect(red).toBeGreaterThan(20); expect(blue).toBeGreaterThan(20);
+  });
+  it("levels are fractions of the global peak of the total density, so a sparse category gets fewer bands than a dense one", () => {
+    const a = gauss(400, 0, 0, 0.25, 21), b = gauss(40, 4, 0, 0.25, 22);
+    const m = buildTerrain({ x: Float32Array.from([...a.x, ...b.x]), y: Float32Array.from([...a.y, ...b.y]), cat: Uint16Array.from([...Array(400).fill(1), ...Array(40).fill(2)]), catRGB: [[0, 0, 0], [255, 0, 0], [0, 0, 255]] });
+    const alphas = (pred: (v: number) => boolean) => { const s = new Set<number>(); for (let v = 0; v < m.positions.length / 2; v++) if (pred(v)) s.add(m.colors[4 * v + 3]); return s.size; };
+    expect(alphas((v) => m.colors[4 * v] > 0)).toBeGreaterThan(alphas((v) => m.colors[4 * v + 2] > 0));
+  });
+});

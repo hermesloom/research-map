@@ -21,3 +21,15 @@ describe("ungraded (-1) handling", () => {
     expect(Array.from(visibleMask(p, 2, false, {}, null))).toEqual([0, 1]);
   });
 });
+
+describe("rgbaForRows", () => {
+  it("packs palette colour + grade alpha per visible row as RGBA bytes (ungraded like grade 1, unclustered grey)", async () => {
+    const { rgbaForRows, catRGBFor } = await import("@/app/canvas/colors");
+    const p: any = { count: 3, leaf: [0, -1, 1], grade: [3, -1, 0], leaves: [{ id: 0 }, { id: 1 }] };
+    const rgba = rgbaForRows(p, [0, 1, 2]);
+    expect(Array.from(rgba.slice(0, 4))).toEqual([0x4e, 0x79, 0xa7, 255]);              // leaf 0 → palette[0], grade 3 → alpha 1
+    expect(Array.from(rgba.slice(4, 8))).toEqual([0xcf, 0xcf, 0xcf, Math.round(0.45 * 255)]);   // unclustered grey, ungraded → grade 1 alpha
+    expect(Array.from(rgba.slice(8, 12))).toEqual([0xf2, 0x8e, 0x2b, Math.round(0.18 * 255)]);  // leaf 1 → palette[1], grade 0
+    const cats = catRGBFor(p); expect(cats[0]).toEqual([0xcf, 0xcf, 0xcf]); expect(cats[1]).toEqual([0x4e, 0x79, 0xa7]); expect(cats[2]).toEqual([0xf2, 0x8e, 0x2b]);
+  });
+});

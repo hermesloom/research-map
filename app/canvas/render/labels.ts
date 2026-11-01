@@ -1,6 +1,6 @@
 import type { Camera, Viewport } from "./camera";
 import { project } from "./camera";
-export type LabelIn = { x: number; y: number; content: string | { image: string; width: number; height: number }; level: number; priority: number; align?: "center" | "right" | "left"; px?: number };
+export type LabelIn = { x: number; y: number; content: string | { image: string; width: number; height: number }; level: number; priority: number; align?: "center" | "right" | "left"; px?: number; row?: number };
 export type PlacedLabel = { text: string; x: number; y: number; w: number; h: number; level: number; px: number; align: "center" | "right" | "left"; key: string };
 /** Label tiers switch on the average room each visible point has on screen (CSS px), so every lens behaves the same: themes always; cluster labels from 40 px; post titles from 100 px. */
 export const LEVEL_MIN_SPACING_PX = [0, 40, 100];

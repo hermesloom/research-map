@@ -51,3 +51,16 @@ describe("item titles in every lens", () => {
     const b = ls.find((l) => l.content === "Title of b")!; expect(b.x).toBeCloseTo(xy.x[2], 6); expect(b.y).toBeCloseTo(xy.y[2], 6);
   });
 });
+
+describe("title rows and fit anchors", () => {
+  it("each title carries the row index (position within the visible rows) so the renderer can follow the tween", () => {
+    const terrainLabels = [{ x: 1, y: 0, content: "Title of a", level: 2, priority: 3 }, { x: -1, y: 0, content: "Title of b", level: 2, priority: 1 }];
+    const xy = questionXY(p, "q"); const ls = lensLabels("question", p, xy, { questions, subOrder: ["s1", "s2"], terrainLabels }, [2, 1]);
+    expect(ls.find((l) => l.content === "Title of a")!.row).toBe(1); expect(ls.find((l) => l.content === "Title of b")!.row).toBe(0);
+  });
+  it("lensAnchors returns the structural (non-title) label positions, so the fitted view includes row labels", async () => {
+    const { lensAnchors } = await import("@/app/canvas/lenses");
+    const xy = timeXY(p, [null, "s1", "s2", null], ["s1", "s2"]); const ls = lensLabels("time", p, xy, { questions, subOrder: ["s1", "s2"], terrainLabels: [{ x: 1, y: 0, content: "T", level: 2, priority: 1 }] }, [1]);
+    const a = lensAnchors(ls); expect(a.length).toBe(3); expect(a.every((q) => q.x < 0)).toBe(true);
+  });
+});

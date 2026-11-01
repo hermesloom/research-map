@@ -15,7 +15,7 @@ export function pointInRing(p: [number, number], r: Ring): boolean {
 /** Marching-squares isolines per absolute level: polygons as [outer, ...holes] (d3 assigns holes by containment). */
 export function isolines(field: Field, levelsAbs: number[]): Ring[][][] {
   const gen = contours().size([field.n, field.m]).smooth(true);
-  return levelsAbs.map((lv) => (gen.contour(field.values, lv).coordinates as unknown as Ring[][]).map((poly) => poly.map((ring) => ring.map(([x, y]) => [x, y] as [number, number]))));
+  return levelsAbs.map((lv) => (gen.contour(field.values as unknown as number[], lv).coordinates as unknown as Ring[][]).map((poly) => poly.map((ring) => ring.map(([x, y]) => [x, y] as [number, number]))));
 }
 /** Nested isobands: band i = level-i polygons, with the exterior rings of level i+1 that lie inside added as holes. Rings are shared by reference between neighbouring bands. */
 export function isobands(perLevel: Ring[][][], minAreaCells = 4): BandPolygon[] {

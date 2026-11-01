@@ -13,8 +13,11 @@ class FakeWorker implements WorkerLike {
 }
 
 describe("terrainKey", () => {
-  it("depends on lens and on the row set, not on array identity", () => {
-    expect(terrainKey("terrain", [1, 2, 3])).toBe(terrainKey("terrain", Int32Array.from([1, 2, 3]))); expect(terrainKey("terrain", [1, 2, 3])).not.toBe(terrainKey("time", [1, 2, 3])); expect(terrainKey("terrain", [1, 2, 3])).not.toBe(terrainKey("terrain", [1, 2, 4]));
+  it("depends on lens, row set and positions, not on array identity", () => {
+    const x = Float32Array.from([0, 1, 2]), y = Float32Array.from([0, 0, 1]);
+    expect(terrainKey("terrain", [1, 2, 3], x, y)).toBe(terrainKey("terrain", Int32Array.from([1, 2, 3]), Float32Array.from(x), Float32Array.from(y)));
+    expect(terrainKey("terrain", [1, 2, 3], x, y)).not.toBe(terrainKey("time", [1, 2, 3], x, y)); expect(terrainKey("terrain", [1, 2, 3], x, y)).not.toBe(terrainKey("terrain", [1, 2, 4], x, y));
+    expect(terrainKey("time", [1, 2, 3], x, y)).not.toBe(terrainKey("time", [1, 2, 3], x, Float32Array.from([0, 0, 2])));   // same rows, moved points (e.g. metadata arrived) → new terrain
   });
 });
 describe("TerrainService", () => {

@@ -4,10 +4,11 @@ export type WorkerLike = { postMessage(msg: unknown, transfer?: Transferable[]):
 export type TerrainKey = string;
 type Cb = (key: TerrainKey, mesh: TerrainMesh) => void;
 
-/** FNV-1a over the lens id and the visible row indices: the same rows in the same lens always get the same terrain. */
-export function terrainKey(lens: string, rows: ArrayLike<number>): TerrainKey {
-  let h = 2166136261; for (let i = 0; i < lens.length; i++) { h ^= lens.charCodeAt(i); h = Math.imul(h, 16777619); }
-  for (let i = 0; i < rows.length; i++) { h ^= rows[i] & 0xffff; h = Math.imul(h, 16777619); h ^= rows[i] >>> 16; h = Math.imul(h, 16777619); }
+/** FNV-1a over the lens id, the visible row indices and the positions: identical inputs always get the same terrain, and moved points (e.g. time rows after metadata loads) get a new one. */
+export function terrainKey(lens: string, rows: ArrayLike<number>, x: Float32Array, y: Float32Array): TerrainKey {
+  let h = 2166136261; const mix = (v: number) => { h ^= v & 0xffff; h = Math.imul(h, 16777619); h ^= v >>> 16; h = Math.imul(h, 16777619); };
+  for (let i = 0; i < lens.length; i++) mix(lens.charCodeAt(i)); for (let i = 0; i < rows.length; i++) mix(rows[i]);
+  const xi = new Uint32Array(x.buffer, x.byteOffset, x.length), yi = new Uint32Array(y.buffer, y.byteOffset, y.length); for (let i = 0; i < xi.length; i++) { mix(xi[i]); mix(yi[i]); }
   return `${lens}:${rows.length}:${(h >>> 0).toString(16)}`;
 }
 

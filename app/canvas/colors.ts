@@ -23,3 +23,16 @@ export function visibleMask(p: PointsFile, minGrade: number, showAll: boolean, f
   }
   return m;
 }
+
+const hexRGB = (hex: string): [number, number, number] => { const n = parseInt(hex.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+export const UNCLUSTERED_RGB: [number, number, number] = hexRGB("#cfcfcf");
+/** RGBA bytes (straight alpha) per visible row: leaf palette colour with the grade alpha; unclustered rows are grey. */
+export function rgbaForRows(p: PointsFile, rows: number[]): Uint8Array {
+  const out = new Uint8Array(rows.length * 4);
+  rows.forEach((i, r) => { const leaf = p.leaf[i]; const [R, G, B] = leaf < 0 ? UNCLUSTERED_RGB : hexRGB(LEAF_PALETTE[leaf % LEAF_PALETTE.length]); out[4 * r] = R; out[4 * r + 1] = G; out[4 * r + 2] = B; out[4 * r + 3] = Math.round(255 * ALPHA[effectiveGrade(p.grade[i])]); });
+  return out;
+}
+/** Terrain category colours: index 0 = unclustered grey, index leaf+1 = that leaf's palette colour. */
+export function catRGBFor(p: PointsFile): [number, number, number][] {
+  const n = Math.max(0, ...p.leaves.map((l) => l.id)) + 1; return [UNCLUSTERED_RGB, ...Array.from({ length: n }, (_, l) => hexRGB(LEAF_PALETTE[l % LEAF_PALETTE.length]))];
+}

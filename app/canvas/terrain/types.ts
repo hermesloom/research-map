@@ -13,8 +13,8 @@ export type TerrainMesh = {
   segmentCount: number;
   stats: TerrainStats;
 };
-/** Six nested levels as fractions of each category's peak density (≈ 90/75/60/45/30/15 % highest-density regions for Gaussian blobs). */
-export const LEVELS = [0.10, 0.25, 0.40, 0.55, 0.70, 0.85];
+/** Six nested levels as fractions of the peak of the total density (the same levels the accepted raster renderer used). */
+export const LEVELS = [0.06, 0.14, 0.26, 0.42, 0.62, 0.85];
 /** Fill alpha of band b (1 = outermost … 6 = innermost); matches the previous renderer exactly. */
 export const BAND_ALPHA = (b: number) => 0.10 + 0.075 * b;
 export const SIGMA_CELLS = 16;

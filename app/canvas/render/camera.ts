@@ -17,3 +17,9 @@ export function fitCamera(x: ArrayLike<number>, y: ArrayLike<number>, vp: Viewpo
 }
 /** Keep zoom within a useful range of the fitted view (0.25× … 80×) so nobody gets lost in empty space. */
 export const clampScale = (scale: number, fitScale: number) => Math.min(fitScale * 80, Math.max(fitScale * 0.25, scale));
+/** Fit points plus extra anchors (e.g. structural label positions) into the viewport. */
+export function fitCameraTo(x: ArrayLike<number>, y: ArrayLike<number>, anchors: { x: number; y: number }[], vp: Viewport, fill = 0.9): Camera {
+  const ax = new Float64Array(x.length + anchors.length), ay = new Float64Array(x.length + anchors.length);
+  for (let i = 0; i < x.length; i++) { ax[i] = x[i]; ay[i] = y[i]; } anchors.forEach((a, k) => { ax[x.length + k] = a.x; ay[x.length + k] = a.y; });
+  return fitCamera(ax, ay, vp, fill);
+}
