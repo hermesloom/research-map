@@ -13,7 +13,7 @@ d("db", () => {
   it("creates unique xId indexes and upserts idempotently", async () => {
     const db = await mod.getDb(); await mod.ensureIndexes(db);
     const { items } = mod.collections(db);
-    const doc = { xId: "1", text: "a", createdAt: new Date(), kind: "text", urls: [], media: [], isResearchQuestion: false, stage: "ingested", fetchedAt: new Date() } as const;
+    const doc = { xId: "1", text: "a", createdAt: new Date(), kind: "text", urls: [], media: [], isResearchQuestion: false, stage: "ingested", fetchedAt: new Date() } satisfies import("@/lib/types").Item;
     await items.updateOne({ xId: "1" }, { $setOnInsert: doc }, { upsert: true });
     await items.updateOne({ xId: "1" }, { $setOnInsert: doc }, { upsert: true });
     expect(await items.countDocuments({ xId: "1" })).toBe(1);
