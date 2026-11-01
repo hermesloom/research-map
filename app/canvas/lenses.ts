@@ -53,7 +53,7 @@ export function tween(a: Float32Array, b: Float32Array, t: number, out: Float32A
   for (let i = 0; i < a.length; i++) out[i] = a[i] + (b[i] - a[i]) * e; return out;
 }
 
-export type LensLabel = { x: number; y: number; content: string | { image: string; width: number; height: number }; level: number; priority: number; align?: "center" | "right"; px?: number };
+export type LensLabel = { x: number; y: number; content: string | { image: string; width: number; height: number }; level: number; priority: number; align?: "center" | "right" | "left"; px?: number };
 /** Labels for the active lens. Terrain uses the batch job's labels; the other lenses label their own geometry. */
 export function lensLabels(id: LensId, p: PointsFile, xy: { x: Float32Array; y: Float32Array }, ctx: { questions: { id: string; text: string; parentId: string | null }[]; subOrder: string[]; terrainLabels: LensLabel[] }): LensLabel[] {
   if (id === "terrain") return ctx.terrainLabels;

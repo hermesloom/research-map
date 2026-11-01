@@ -27,3 +27,10 @@ describe("right-aligned labels", () => {
     expect(placed.length).toBe(1); expect(placed[0].x + placed[0].w).toBeLessThanOrEqual(400 + 1); expect(placed[0].px).toBe(13); expect(placed[0].align).toBe("right");
   });
 });
+
+describe("item titles", () => {
+  it("level-2 labels default to left alignment with an 8 px offset so they don't cover the dot", () => {
+    const placed = placeLabels([{ x: 0, y: 0, content: "Title", level: 2, priority: 1 }], { x: 0, y: 0, scale: 50 }, { w: 800, h: 600 }, measure, 10);
+    expect(placed[0].align).toBe("left"); expect(placed[0].x).toBeGreaterThanOrEqual(400 + 8);
+  });
+});

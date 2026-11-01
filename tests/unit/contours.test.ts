@@ -38,3 +38,38 @@ describe("tileSegments", () => {
     expect(tiles.get("0,0")!.length).toBe(1); expect(tiles.get("1,1")!.length).toBe(1); expect(tiles.get("0,0")!.length + (tiles.get("1,0")?.length ?? 0)).toBe(2);   // the straddling segment lands in exactly one tile (by midpoint)
   });
 });
+
+import { renderBandImage } from "@/app/canvas/render/contours";
+describe("renderBandImage", () => {
+  it("samples the field bilinearly at screen resolution: coloured where dense, transparent where empty", () => {
+    const g = computeDensityGrid(new Float32Array([0.5]), new Float32Array([0.5]), new Uint16Array([1]), { width: 32, height: 32, x0: 0, x1: 1, y0: 0, y1: 1 }, 3);
+    const levels = bandLevels(g.max); const rgb: [number, number, number][] = [[200, 200, 200], [255, 0, 0]];
+    // region covering grid cells [8,24) in both axes, drawn at 4 px per cell → 64×64 image
+    const img = renderBandImage(g, levels, rgb, { gx0: 8, gy0: 8, cellsPerPx: 0.25 }, 64, 64);
+    const at = (x: number, y: number) => Array.from(img.subarray((y * 64 + x) * 4, (y * 64 + x) * 4 + 4));
+    const c = at(32, 32); expect(c[0]).toBe(255); expect(c[3]).toBeGreaterThan(40);          // centre: red, visible
+    expect(at(1, 1)[3]).toBe(0);                                                             // corner: transparent
+    expect(at(32, 32)[3]).toBeGreaterThan(at(32, 20)[3]);                                    // alpha grows toward the peak
+  });
+});
+
+import { categoryAt } from "@/app/canvas/render/contours";
+describe("smooth per-category fields", () => {
+  it("categoryAt interpolates each category's own density between cells, so the boundary between two clusters is the smooth crossing of their fields", () => {
+    const spec = { width: 64, height: 32, x0: 0, x1: 2, y0: 0, y1: 1 };
+    // cluster 1 is denser (two points) than cluster 2 (one point): the boundary must sit right of the midpoint (x = 32 cells)
+    const g = computeDensityGrid(new Float32Array([0.5, 0.55, 1.5]), new Float32Array([0.5, 0.5, 0.5]), new Uint16Array([1, 1, 2]), spec, 10);
+    expect(categoryAt(g, 10, 16)).toBe(1); expect(categoryAt(g, 54, 16)).toBe(2);
+    let boundary = -1; for (let x = 20; x < 60; x++) if (categoryAt(g, x + 0.5, 16) === 2) { boundary = x; break; }
+    expect(boundary).toBeGreaterThan(32); expect(boundary).toBeLessThan(50);
+    // sub-cell smoothness: sampling at quarter-cell offsets around the boundary changes category exactly once
+    const seq: number[] = []; for (let x = boundary - 2; x <= boundary + 2; x += 0.25) seq.push(categoryAt(g, x, 16)); expect(seq.filter((c, i) => i > 0 && c !== seq[i - 1]).length).toBe(1);
+  });
+  it("renderBandImage uses categoryAt by default", () => {
+    const spec = { width: 64, height: 32, x0: 0, x1: 2, y0: 0, y1: 1 };
+    const g = computeDensityGrid(new Float32Array([0.5, 1.5]), new Float32Array([0.5, 0.5]), new Uint16Array([1, 2]), spec, 10);
+    const img = renderBandImage(g, bandLevels(g.max), [[0, 0, 0], [255, 0, 0], [0, 0, 255]], { gx0: 0, gy0: 0, cellsPerPx: 0.5 }, 128, 64);
+    const px = (i: number, j: number) => Array.from(img.subarray((j * 128 + i) * 4, (j * 128 + i) * 4 + 3));
+    expect(px(56, 32)).toEqual([255, 0, 0]); expect(px(72, 32)).toEqual([0, 0, 255]);
+  });
+});

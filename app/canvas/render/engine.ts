@@ -1,7 +1,7 @@
 import { project, unproject, zoomAt, fitCamera, clampScale, type Camera, type Viewport } from "./camera";
 import { placeLabels, type LabelIn } from "./labels";
 import { rasterSpec, medianSpacing } from "./density";
-import { computeDensityGrid, marchingSquares, bandLevels, bandOf, tileSegments } from "./contours";
+import { computeDensityGrid, marchingSquares, bandLevels, bandOf, tileSegments, renderBandImage, type DensityGrid } from "./contours";
 import { tween } from "../lenses";
 import { nearestRowAt, type ProxyLike } from "../overlayLogic";
 
@@ -16,7 +16,9 @@ export class MapEngine {
   private data: EngineData | null = null; private pos: { x: Float32Array; y: Float32Array } | null = null;
   private tweenFrom: { x: Float32Array; y: Float32Array } | null = null; private tweenTo: { x: Float32Array; y: Float32Array } | null = null; private tweenT0 = 0;
   private labels: LabelIn[] = []; private selected = -1; private dirty = true; private raf = 0; private destroyed = false;
-  private terrain: { canvas: HTMLCanvasElement; x0: number; x1: number; y0: number; y1: number; gw: number; gh: number; tile: number; tiles: Map<string, { color: string; outer: boolean; path: Path2D }[]> } | null = null; private terrainTimer: number | null = null;
+  private terrain: { canvas: HTMLCanvasElement; x0: number; x1: number; y0: number; y1: number; gw: number; gh: number; tile: number; tiles: Map<string, { color: string; outer: boolean; path: Path2D }[]>; grid: DensityGrid; levels: number[]; rgb: [number, number, number][] } | null = null; private terrainTimer: number | null = null;
+  /** Screen-resolution band fill for the current zoom (region = viewport + margin); re-rendered on zoom change or when panning past the margin. */
+  private bandLayer: { canvas: HTMLCanvasElement; scale: number; gx0: number; gy0: number; step: number; w: number; h: number } | null = null; private refineTimer: number | null = null;
   private terrainEnabled = true;
   private measureCache = new Map<string, number>();
   private drag: { id: number; X: number; Y: number; moved: boolean } | null = null; private pinch: Map<number, { X: number; Y: number }> = new Map(); private pinchDist = 0;
@@ -56,7 +58,7 @@ export class MapEngine {
   flyTo(x: number, y: number, scale?: number) { this.setCamera({ x, y, scale: scale ?? Math.max(this.cam.scale, this.fitScale * 10) }); }
   fit() { if (this.pos) this.setCamera(fitCamera(this.pos.x, this.pos.y, this.vp, 0.85)); }
   destroy() {
-    this.destroyed = true; cancelAnimationFrame(this.raf); if (this.terrainTimer) clearTimeout(this.terrainTimer);
+    this.destroyed = true; cancelAnimationFrame(this.raf); if (this.terrainTimer) clearTimeout(this.terrainTimer); if (this.refineTimer) clearTimeout(this.refineTimer);
     const c = this.canvas; c.removeEventListener("pointerdown", this.onDown); c.removeEventListener("pointermove", this.onMove); c.removeEventListener("pointerup", this.onUp); c.removeEventListener("pointercancel", this.onUp); c.removeEventListener("wheel", this.onWheel); c.removeEventListener("dblclick", this.onDbl);
   }
 
@@ -93,14 +95,14 @@ export class MapEngine {
   }
   private buildTerrain() {
     const d = this.data, pos = this.pos; if (!d || !pos || pos.x.length === 0) { this.terrain = null; return; }
-    const spec = rasterSpec(pos.x, pos.y, 512, 0.1); const { width: gw, height: gh } = spec;
+    const spec = rasterSpec(pos.x, pos.y, 1024, 0.1); const { width: gw, height: gh } = spec;
     const bw = Math.max(2.5, Math.min(14, medianSpacing(pos.x, pos.y) * spec.pxPerUnit * 1.4));
     const grid = computeDensityGrid(pos.x, pos.y, d.cat, { width: gw, height: gh, x0: spec.x0, x1: spec.x1, y0: spec.y0, y1: spec.y1 }, bw);
     const levels = bandLevels(grid.max);
     // band fill raster: category colour, alpha growing with the band
     const off = document.createElement("canvas"); off.width = gw; off.height = gh; const g = off.getContext("2d")!; const img = g.createImageData(gw, gh); const px = img.data;
     const rgb = d.catColor.map(parseRGB);
-    for (let k = 0; k < grid.D.length; k++) { const b = bandOf(grid.D[k], levels); if (b === 0) continue; const c = rgb[grid.bestCat[k]] ?? [200, 200, 200]; const o = k * 4; px[o] = c[0]; px[o + 1] = c[1]; px[o + 2] = c[2]; px[o + 3] = Math.round(255 * (0.10 + 0.075 * b)); }
+    for (let k = 0; k < grid.D.length; k++) { const b = bandOf(grid.D[k], levels); if (b === 0) continue; const c = rgb[grid.bestCat[k]] ?? [200, 200, 200]; const o = k * 4; px[o] = c[0]; px[o + 1] = c[1]; px[o + 2] = c[2]; px[o + 3] = Math.round(255 * (0.10 + 0.075 * b)); }   // overview raster: cell categories are fine at this size
     g.putImageData(img, 0, 0);
     // contour lines per (category, level) as Path2D in grid coordinates; stroked each frame under the current transform
     const paths = new Map<string, { color: string; path: Path2D; outer: boolean }>();
@@ -112,7 +114,7 @@ export class MapEngine {
       }
     });
     // Bake bands + lines into one high-resolution image (crisp up to the zoom where the terrain has faded out), so each frame is a single drawImage.
-    const upscale = Math.max(1, Math.min(4, Math.floor(2048 / gw))); const big = document.createElement("canvas"); big.width = gw * upscale; big.height = gh * upscale; const B = big.getContext("2d")!;
+    const upscale = Math.max(1, Math.min(2, Math.floor(2048 / gw))); const big = document.createElement("canvas"); big.width = gw * upscale; big.height = gh * upscale; const B = big.getContext("2d")!;
     B.imageSmoothingEnabled = true; B.drawImage(off, 0, 0, big.width, big.height);
     B.setTransform(upscale, 0, 0, upscale, 0, 0); B.lineJoin = "round"; B.lineCap = "round";
     for (const L of paths.values()) { B.lineWidth = (L.outer ? 1.6 : 1) / upscale * 1.5; B.strokeStyle = L.outer ? withAlpha(L.color, 0.9) : withAlpha(L.color, 0.55); B.stroke(L.path); }
@@ -124,7 +126,26 @@ export class MapEngine {
         for (const [x0, y0, x1, y1] of segs) { const cell = Math.min(gh - 1, Math.floor((y0 + y1) / 2)) * gw + Math.min(gw - 1, Math.floor((x0 + x1) / 2)); const cat = grid.bestCat[cell]; let pth = groups.get(cat); if (!pth) { pth = new Path2D(); groups.set(cat, pth); } pth.moveTo(x0, y0); pth.lineTo(x1, y1); }
         const arr = tiles.get(k) ?? []; for (const [cat, path] of groups) arr.push({ color: d.catColor[cat] ?? "rgb(200,200,200)", outer: li === 0, path }); tiles.set(k, arr); }
     });
-    this.terrain = { canvas: big, x0: spec.x0, x1: spec.x1, y0: spec.y0, y1: spec.y1, gw, gh, tile, tiles }; this.dirty = true;
+    this.terrain = { canvas: big, x0: spec.x0, x1: spec.x1, y0: spec.y0, y1: spec.y1, gw, gh, tile, tiles, grid, levels, rgb }; this.bandLayer = null; this.dirty = true;
+  }
+
+  /** Band fill for the visible area at screen resolution. Region = viewport + 50% margin, in grid coordinates. Quick half-res pass while zooming, full-res refine 180 ms after the last change. */
+  private ensureBandLayer(T: NonNullable<typeof this.terrain>, cam: Camera, a: { x: number; y: number }, sx: number, sy: number, w: number, h: number) {
+    const cellsPerPx = 1 / sx; const vis = { gx0: (0 - a.x) / sx, gy0: (0 - a.y) / sy, gx1: (w - a.x) / sx, gy1: (h - a.y) / sy };
+    const L = this.bandLayer; const covers = L && L.scale === cam.scale && vis.gx0 >= L.gx0 && vis.gy0 >= L.gy0 && vis.gx1 <= L.gx0 + L.w * cellsPerPx && vis.gy1 <= L.gy0 + L.h * cellsPerPx;
+    if (covers) return L;
+    const mx = (vis.gx1 - vis.gx0) * 0.5, my = (vis.gy1 - vis.gy0) * 0.5;
+    const gx0 = Math.max(0, vis.gx0 - mx), gy0 = Math.max(0, vis.gy0 - my), gx1 = Math.min(T.gw, vis.gx1 + mx), gy1 = Math.min(T.gh, vis.gy1 + my);
+    const fullW = Math.ceil((gx1 - gx0) / cellsPerPx), fullH = Math.ceil((gy1 - gy0) / cellsPerPx); if (fullW <= 0 || fullH <= 0) return null;
+    const step = L && L.scale === cam.scale ? 1 : 2;   // same zoom (pan past margin) → full res directly; new zoom → quick pass first
+    const render = (st: number) => {
+      const rw = Math.ceil(fullW / st), rh = Math.ceil(fullH / st); const data = renderBandImage(T.grid, T.levels, T.rgb, { gx0, gy0, cellsPerPx: cellsPerPx * st }, rw, rh);
+      const c = document.createElement("canvas"); c.width = rw; c.height = rh; c.getContext("2d")!.putImageData(new ImageData(data, rw, rh), 0, 0);
+      this.bandLayer = { canvas: c, scale: cam.scale, gx0, gy0, step: st, w: fullW, h: fullH }; this.dirty = true;
+    };
+    render(step);
+    if (step > 1) { if (this.refineTimer) clearTimeout(this.refineTimer); this.refineTimer = window.setTimeout(() => { this.refineTimer = null; if (this.cam.scale === cam.scale && this.bandLayer?.step === 2) render(1); }, 180); }
+    return this.bandLayer;
   }
 
   // ---- render loop
@@ -140,13 +161,16 @@ export class MapEngine {
   private draw() {
     const ctx = this.ctx, { w, h } = this.vp; ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); ctx.fillStyle = "#0b0d10"; ctx.fillRect(0, 0, w, h);
     const d = this.data, pos = this.pos; if (!d || !pos) return; const cam = this.cam;
-    // terrain fades out as you zoom in (points take over): full until 2× fit, gone at 4.5×
+    // terrain: baked raster at overview zoom; from 1.5× fit, screen-resolution fills + vector lines (crisp at any zoom); fades out between 6× and 10×
     if (this.terrain && this.terrainEnabled) {
-      const T = this.terrain; const zoomRel = cam.scale / (this.fitScale || 1); const alpha = Math.max(0, Math.min(1, 1 - (zoomRel - 2) / 2.5));
+      const T = this.terrain; const zoomRel = cam.scale / (this.fitScale || 1); const alpha = Math.max(0, Math.min(1, 1 - (zoomRel - 6) / 4));
       if (alpha > 0) {
         const a = project(cam, this.vp, T.x0, T.y1), b = project(cam, this.vp, T.x1, T.y0); const sx = (b.x - a.x) / T.gw, sy = (b.y - a.y) / T.gh;
-        ctx.globalAlpha = alpha; ctx.imageSmoothingEnabled = true; ctx.drawImage(T.canvas, a.x, a.y, b.x - a.x, b.y - a.y);
-        if (zoomRel >= 1.5) {   // crisp vector contour lines for the visible tiles only
+        ctx.globalAlpha = alpha;
+        if (zoomRel < 1.5) { ctx.imageSmoothingEnabled = true; ctx.drawImage(T.canvas, a.x, a.y, b.x - a.x, b.y - a.y); }
+        else {
+          const layer = this.ensureBandLayer(T, cam, a, sx, sy, w, h);
+          if (layer) { const px0 = a.x + layer.gx0 * sx, py0 = a.y + layer.gy0 * sy; ctx.imageSmoothingEnabled = layer.step > 1; ctx.drawImage(layer.canvas, px0, py0, layer.w, layer.h); }
           const tx0 = Math.max(0, Math.floor((0 - a.x) / sx / T.tile)), tx1 = Math.floor((w - a.x) / sx / T.tile), ty0 = Math.max(0, Math.floor((0 - a.y) / sy / T.tile)), ty1 = Math.floor((h - a.y) / sy / T.tile);
           ctx.save(); ctx.setTransform(this.dpr * sx, 0, 0, this.dpr * sy, this.dpr * a.x, this.dpr * a.y); ctx.lineJoin = "round"; ctx.lineCap = "round";
           for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const arr = T.tiles.get(`${tx},${ty}`); if (!arr) continue; for (const L of arr) { ctx.lineWidth = (L.outer ? 1.6 : 1) / sx; ctx.strokeStyle = L.outer ? withAlpha(L.color, 0.95) : withAlpha(L.color, 0.6); ctx.stroke(L.path); } }
