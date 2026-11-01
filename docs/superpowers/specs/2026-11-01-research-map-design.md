@@ -103,14 +103,14 @@ Escape hatch if a run approaches 300 s: wrap the same stage functions in Vercel 
 
 ### 5.2 Batch job (Python, GitHub Actions `workflow_dispatch`)
 
-Triggered manually, or by the daily job via `repository_dispatch` when provisional share > 5–10% (configurable). Not on a schedule (public-repo schedules auto-disable after 60 idle days).
+Triggered manually, or by the daily job via `repository_dispatch` when provisional share > 8% (configurable). Not on a schedule (public-repo schedules auto-disable after 60 idle days).
 
 1. Load all vectors + previous published layout from Atlas.
 2. Clustering space: UMAP/PaCMAP to 10–20 d. Display layout: 2-D UMAP/PaCMAP **warm-started** (`init=` previous coordinates, provisional points at their placed positions), then **Procrustes-aligned** (rotation/reflection/scale) to the previous layout over shared ids; record residual.
 3. Cluster the high-d space (HDBSCAN `min_cluster_size≈8` / EVoC layers). Match new clusters to old by Jaccard overlap of members; **reuse labels at ≥ 0.7**. LLM-name only new/split/merged clusters (Clio recipe: in-cluster + contrastive samples → name; names → themes). Target ≈ 5–9 themes.
 4. Regrow the sub-question tree from rationales of grade-2/3 posts; version old questions out (`validTo`), never delete.
 5. Compute alpha-shape hulls per leaf, label positions/priorities (priority = member count × mean grade), and a 2048² thumbnail sprite atlas.
-6. Write a new `layouts` version. **Gate:** if `procrustesResidual` > threshold, save as `draft` and post a summary for owner approval; otherwise `published`. Apply `overrides`. Clear `provisional`. The next daily publish ships it; the canvas animates old → new.
+6. Write a new `layouts` version. **Gate:** if `procrustesResidual` > 0.10 (configurable; normal re-layouts measured 0.015–0.035, a bad one 0.243), save as `draft` and post a summary for owner approval; otherwise `published`. Apply `overrides`. Clear `provisional`. The next daily publish ships it; the canvas animates old → new.
 
 ### 5.3 Backlog bootstrap (one-off script, no X API)
 
