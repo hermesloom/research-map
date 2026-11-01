@@ -2,7 +2,6 @@ import { getDb } from "@/lib/db";
 import { runDaily } from "@/lib/pipeline/run";
 import { reconcileDeletions } from "@/lib/pipeline/reconcile";
 import { env } from "@/lib/env";
-export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 /** Daily job. Vercel Cron sends `Authorization: Bearer ${CRON_SECRET}`. `?force=1` republishes even without changes (used by the batch job). */

@@ -1,5 +1,4 @@
 import { getDb, collections } from "@/lib/db";
-export const dynamic = "force-dynamic";
 export async function GET() {
   const db = await getDb(); const c = collections(db);
   const [runs, manifest, stages] = await Promise.all([

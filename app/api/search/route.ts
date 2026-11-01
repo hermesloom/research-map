@@ -1,7 +1,6 @@
 import { getDb } from "@/lib/db";
 import { embedTexts } from "@/lib/llm/embed";
 import { env } from "@/lib/env";
-export const dynamic = "force-dynamic";
 /** Semantic search: embed the query, exact kNN in Atlas, exclude the research-question post itself. */
 export async function GET(request: Request) {
   const q = (new URL(request.url).searchParams.get("q") ?? "").trim().slice(0, 300); if (!q) return Response.json([]);

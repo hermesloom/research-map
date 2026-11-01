@@ -1,5 +1,4 @@
 import { getDb, collections } from "@/lib/db";
-export const dynamic = "force-dynamic";
 /** Delta of graded posts since an ISO timestamp (for the "what's new" badge). */
 export async function GET(request: Request) {
   const since = new URL(request.url).searchParams.get("since"); const db = await getDb();
