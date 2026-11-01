@@ -4,6 +4,7 @@ import type { Snapshot } from "./useSnapshot";
 import type { MetaFile } from "@/lib/snapshot";
 import { toJsonCanvas } from "./export";
 import OwnerControls from "./OwnerControls";
+import TweetEmbed from "./TweetEmbed";
 
 export default function Inspector({ snap, xId, onClose, loadMeta }: { snap: Snapshot; xId: string; onClose: () => void; loadMeta: () => Promise<MetaFile> }) {
   const [meta, setMeta] = useState<MetaFile | null>(snap.meta);
@@ -16,6 +17,7 @@ export default function Inspector({ snap, xId, onClose, loadMeta }: { snap: Snap
   return (
     <aside className="inspector" aria-label="Post details">
       <button className="link close" onClick={onClose} aria-label="Close">×</button>
+      <TweetEmbed id={xId} url={xUrl} />
       {meta ? (<>
         <h2>{meta.title[i]}</h2>
         <p className="gist">{meta.gist[i]}</p>
@@ -28,7 +30,7 @@ export default function Inspector({ snap, xId, onClose, loadMeta }: { snap: Snap
           {meta.tags[i].length > 0 && <><dt>Tags</dt><dd>{meta.tags[i].join(", ")}</dd></>}
           <dt>Kind · language</dt><dd>{p.kinds[p.kind[i]]} · {meta.lang[i]}</dd>
         </dl>
-        <p className="x">Julian · @sigalor · <a href={xUrl} target="_blank" rel="noopener">{date}</a></p>
+        <p className="x">Julian · @sigalor · <a href={xUrl} target="_blank" rel="noopener">{date} · open on X</a></p>
         <p className="small"><a href="https://github.com/hermesloom/research-map/edit/main/data/label-overrides.json" target="_blank" rel="noopener">Suggest a better label</a> · <button className="link" onClick={exportCanvas}>Export JSON Canvas</button></p>
         <OwnerControls snap={snap} xId={xId} />
       </>) : <p>Loading…</p>}
