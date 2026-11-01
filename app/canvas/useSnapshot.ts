@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointsFile, MetaFile, LabelsFile } from "@/lib/snapshot";
 import type { Manifest } from "@/lib/types";
 export interface Snapshot { points: PointsFile; labels: LabelsFile; meta: MetaFile | null; manifest: Manifest; }
@@ -12,10 +12,11 @@ export function useSnapshot() {
     const [points, labels] = await Promise.all([fetch(manifest.pointsUrl).then((r) => r.json()), fetch(manifest.labelsUrl).then((r) => r.json())]);
     setSnap({ points, labels, meta: null, manifest });
   } catch (e) { setError(String(e)); } })(); }, []);
-  const loadMeta = () => {
-    if (!snap) return Promise.reject(new Error("no snapshot"));
-    if (!metaP.current) metaP.current = fetch(snap.manifest.metaUrl).then((r) => r.json()).then((m: MetaFile) => { setSnap((s) => (s ? { ...s, meta: m } : s)); return m; });
+  const metaUrl = snap?.manifest.metaUrl;
+  const loadMeta = useCallback(() => {
+    if (!metaUrl) return Promise.reject(new Error("no snapshot"));
+    if (!metaP.current) metaP.current = fetch(metaUrl).then((r) => r.json()).then((m: MetaFile) => { setSnap((s) => (s ? { ...s, meta: m } : s)); return m; });
     return metaP.current;
-  };
+  }, [metaUrl]);
   return { snap, error, loadMeta };
 }
