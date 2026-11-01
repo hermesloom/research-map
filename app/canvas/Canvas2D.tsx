@@ -18,7 +18,7 @@ const Canvas2D = forwardRef<Canvas2DHandle, Props>(function Canvas2D({ data, tar
     return () => { ro.disconnect(); eng.destroy(); engine.current = null; };
   }, []);
   useEffect(() => { if (data && engine.current) engine.current.setData(data, initialCamera); }, [data]);   // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (!target || !engine.current) return; const lensChanged = lastLens.current !== lens; lastLens.current = lens; engine.current.setTarget(target.x, target.y, { terrain: lens === "terrain", refit: lensChanged, fitFill: lens === "time" ? 0.6 : 0.85 }); }, [target, lens]);
+  useEffect(() => { if (!target || !engine.current) return; const lensChanged = lastLens.current !== lens; lastLens.current = lens; engine.current.setTarget(target.x, target.y, { terrain: true, refit: lensChanged, fitFill: lens === "time" ? 0.6 : 0.85 }); }, [target, lens]);
   useEffect(() => { engine.current?.setLabels(labels); }, [labels]);
   useEffect(() => { engine.current?.setSelected(selectedRow); }, [selectedRow]);
   useImperativeHandle(ref, () => ({ flyTo: (x, y, s) => engine.current?.flyTo(x, y, s), fit: () => engine.current?.fit(), camera: () => engine.current?.camera ?? null }), []);

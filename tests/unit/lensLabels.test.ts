@@ -29,3 +29,20 @@ describe("primarySeed", () => {
     expect(primarySeed("ind-x", qs)).toBe("seed-1"); expect(primarySeed("seed-1", qs)).toBe("seed-1"); expect(primarySeed("nope", qs)).toBeNull(); expect(primarySeed(null, qs)).toBeNull();
   });
 });
+
+describe("item titles in every lens", () => {
+  const terrainLabels = [
+    { x: 1, y: 0, content: "Title of a", level: 2, priority: 3 },
+    { x: -1, y: 0, content: "Title of b", level: 2, priority: 1 },
+    { x: 0, y: 0.5, content: "Some leaf", level: 1, priority: 100 },
+  ];
+  it("question lens carries the per-post titles, moved to the post's lens position", () => {
+    const xy = questionXY(p, "q"); const ls = lensLabels("question", p, xy, { questions, subOrder: ["s1", "s2"], terrainLabels });
+    const a = ls.find((l) => l.content === "Title of a")!; expect(a).toBeTruthy(); expect(a.level).toBe(2); expect(a.x).toBeCloseTo(xy.x[1], 6); expect(a.y).toBeCloseTo(xy.y[1], 6);
+    expect(ls.some((l) => l.content === "Some leaf")).toBe(false);   // terrain cluster labels do not travel
+  });
+  it("time lens carries the per-post titles too", () => {
+    const xy = timeXY(p, [null, "s1", "s2", null], ["s1", "s2"]); const ls = lensLabels("time", p, xy, { questions, subOrder: ["s1", "s2"], terrainLabels });
+    const b = ls.find((l) => l.content === "Title of b")!; expect(b.x).toBeCloseTo(xy.x[2], 6); expect(b.y).toBeCloseTo(xy.y[2], 6);
+  });
+});
