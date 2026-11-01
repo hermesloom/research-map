@@ -12,4 +12,7 @@ Runs on GitHub Actions (`.github/workflows/batch.yml`) by `workflow_dispatch` or
 
 ## Measurements
 
-(filled in after the first re-layout: residual, reused labels)
+| Date | Layout | Points | Clusters / noise | Procrustes residual vs previous | Labels reused | Note |
+|---|---|---|---|---|---|---|
+| 2026-11-01 | v1 | 1,229 | 40 / 30.6% | – (first) | 0 | initial bootstrap layout |
+| 2026-11-01 | v2 | 1,229 | 40 / 30.6% | 0.087 | 0 (`--no-reuse`, renamed everything with the contrastive prompt) | warm-started from v1 with the same seed; passes the 0.10 gate but is higher than the experiment's re-seed disparity (0.015–0.035), so the gate value is not generous |
