@@ -16,9 +16,9 @@ describe("lensLabels", () => {
     expect(ls.map((l) => l.content)).toEqual(["Sub one", "Sub two", "unassigned"]);
     const minX = Math.min(...Array.from(xy.x)); expect(ls.every((l) => l.x < minX)).toBe(true);
   });
-  it("terrain lens: passes the snapshot labels through", () => {
+  it("terrain lens: keeps the snapshot's theme and cluster labels", () => {
     const t = [{ x: 1, y: 1, content: "T", level: 0, priority: 1 }];
-    expect(lensLabels("terrain", p, { x: new Float32Array(4), y: new Float32Array(4) }, { questions, subOrder: [], terrainLabels: t })).toBe(t);
+    expect(lensLabels("terrain", p, { x: new Float32Array(4), y: new Float32Array(4) }, { questions, subOrder: [], terrainLabels: t })).toEqual(t);
   });
 });
 
@@ -36,13 +36,18 @@ describe("item titles in every lens", () => {
     { x: -1, y: 0, content: "Title of b", level: 2, priority: 1 },
     { x: 0, y: 0.5, content: "Some leaf", level: 1, priority: 100 },
   ];
-  it("question lens carries the per-post titles, moved to the post's lens position", () => {
-    const xy = questionXY(p, "q"); const ls = lensLabels("question", p, xy, { questions, subOrder: ["s1", "s2"], terrainLabels });
+  it("terrain lens: titles only for the visible rows; cluster and theme labels stay", () => {
+    const xy = { x: Float32Array.from(p.x), y: Float32Array.from(p.y) }; const ls = lensLabels("terrain", p, xy, { questions, subOrder: ["s1", "s2"], terrainLabels }, [1]);
+    expect(ls.filter((l) => l.level === 2).map((l) => l.content)).toEqual(["Title of a"]); expect(ls.some((l) => l.content === "Some leaf")).toBe(true);
+  });
+  it("question lens: titles only for the visible rows, at the post's lens position", () => {
+    const xy = questionXY(p, "q"); const ls = lensLabels("question", p, xy, { questions, subOrder: ["s1", "s2"], terrainLabels }, [1]);
+    expect(ls.some((l) => l.content === "Title of b")).toBe(false);
     const a = ls.find((l) => l.content === "Title of a")!; expect(a).toBeTruthy(); expect(a.level).toBe(2); expect(a.x).toBeCloseTo(xy.x[1], 6); expect(a.y).toBeCloseTo(xy.y[1], 6);
     expect(ls.some((l) => l.content === "Some leaf")).toBe(false);   // terrain cluster labels do not travel
   });
   it("time lens carries the per-post titles too", () => {
-    const xy = timeXY(p, [null, "s1", "s2", null], ["s1", "s2"]); const ls = lensLabels("time", p, xy, { questions, subOrder: ["s1", "s2"], terrainLabels });
+    const xy = timeXY(p, [null, "s1", "s2", null], ["s1", "s2"]); const ls = lensLabels("time", p, xy, { questions, subOrder: ["s1", "s2"], terrainLabels }, [1, 2]);
     const b = ls.find((l) => l.content === "Title of b")!; expect(b.x).toBeCloseTo(xy.x[2], 6); expect(b.y).toBeCloseTo(xy.y[2], 6);
   });
 });

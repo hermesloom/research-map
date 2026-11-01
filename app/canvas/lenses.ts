@@ -55,9 +55,9 @@ export function tween(a: Float32Array, b: Float32Array, t: number, out: Float32A
 
 export type LensLabel = { x: number; y: number; content: string | { image: string; width: number; height: number }; level: number; priority: number; align?: "center" | "right" | "left"; px?: number };
 /** Labels for the active lens. Terrain uses the batch job's labels; the other lenses label their own geometry. */
-export function lensLabels(id: LensId, p: PointsFile, xy: { x: Float32Array; y: Float32Array }, ctx: { questions: { id: string; text: string; parentId: string | null }[]; subOrder: string[]; terrainLabels: LensLabel[] }): LensLabel[] {
-  if (id === "terrain") return ctx.terrainLabels;
-  const titles = itemLabelsAt(p, xy, ctx.terrainLabels);
+export function lensLabels(id: LensId, p: PointsFile, xy: { x: Float32Array; y: Float32Array }, ctx: { questions: { id: string; text: string; parentId: string | null }[]; subOrder: string[]; terrainLabels: LensLabel[] }, rows?: number[]): LensLabel[] {
+  const titles = itemLabelsAt(p, xy, ctx.terrainLabels, rows);
+  if (id === "terrain") return [...ctx.terrainLabels.filter((l) => l.level !== 2), ...titles];
   if (id === "question") {
     const { cx, cy, R } = questionGeometry(p); const core = ctx.questions.find((q) => q.parentId === null)?.text ?? "The question";
     return [{ x: cx, y: cy, content: core, level: 0, priority: 2000 }, ...[3, 2, 1, 0].map((g) => ({ x: cx, y: cy + (3.5 - g) * R, content: `relevance ${g}`, level: 1, priority: 100 + g })), ...titles];
@@ -67,11 +67,11 @@ export function lensLabels(id: LensId, p: PointsFile, xy: { x: Float32Array; y: 
   const row = (y: number, content: string, priority: number) => ({ x: minX - 0.2, y, content, level: 0, priority, align: "right" as const, px: 13 });
   return [...ctx.subOrder.map((sid, i) => row(-(i + 0.4), text(sid), 1000 - i)), row(-(ctx.subOrder.length + 0.4), "unassigned", 10), ...titles];
 }
-/** Per-post labels (level 2) are stored at terrain coordinates; re-anchor them to the post's position in another lens by matching the terrain coordinate. */
-export function itemLabelsAt(p: PointsFile, xy: { x: Float32Array; y: Float32Array }, terrainLabels: LensLabel[]): LensLabel[] {
+/** Per-post labels (level 2) are stored at terrain coordinates; re-anchor them to the post's position in the active lens by matching the terrain coordinate, and keep only the visible rows (all rows when `rows` is omitted). */
+export function itemLabelsAt(p: PointsFile, xy: { x: Float32Array; y: Float32Array }, terrainLabels: LensLabel[], rows?: number[]): LensLabel[] {
   const byPos = new Map<string, number>(); for (let i = 0; i < p.count; i++) byPos.set(`${p.x[i]},${p.y[i]}`, i);
-  const out: LensLabel[] = [];
-  for (const l of terrainLabels) { if (l.level !== 2) continue; const i = byPos.get(`${l.x},${l.y}`); if (i === undefined) continue; out.push({ ...l, x: xy.x[i], y: xy.y[i] }); }
+  const visible = rows ? new Set(rows) : null; const out: LensLabel[] = [];
+  for (const l of terrainLabels) { if (l.level !== 2) continue; const i = byPos.get(`${l.x},${l.y}`); if (i === undefined || (visible && !visible.has(i))) continue; out.push({ ...l, x: xy.x[i], y: xy.y[i] }); }
   return out;
 }
 

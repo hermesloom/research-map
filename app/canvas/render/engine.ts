@@ -1,5 +1,5 @@
 import { project, unproject, zoomAt, fitCamera, clampScale, type Camera, type Viewport } from "./camera";
-import { placeLabels, type LabelIn } from "./labels";
+import { placeLabels, labelSpacingPx, type LabelIn } from "./labels";
 import { rasterSpec, medianSpacing } from "./density";
 import { computeDensityGrid, marchingSquares, bandLevels, bandOf, tileSegments, renderBandImage, type DensityGrid } from "./contours";
 import { tween } from "../lenses";
@@ -190,7 +190,7 @@ export class MapEngine {
     ctx.lineWidth = 1.2;
     if (this.selected >= 0 && this.selected < pos.x.length) { const p = project(cam, this.vp, pos.x[this.selected], pos.y[this.selected]); ctx.strokeStyle = "#9cc4ff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, radius + 9, 0, Math.PI * 2); ctx.stroke(); ctx.lineWidth = 1.2; }
     // labels
-    const placed = placeLabels(this.labels, cam, this.vp, (t, px) => this.measure(t, px), cam.scale / (this.fitScale || 1));
+    const placed = placeLabels(this.labels, cam, this.vp, (t, px) => this.measure(t, px), labelSpacingPx(cam, this.vp, this.tweenTo?.x ?? pos.x, this.tweenTo?.y ?? pos.y));
     ctx.textBaseline = "middle"; ctx.textAlign = "center"; ctx.lineJoin = "round";
     for (const l of placed) {
       ctx.font = `${l.level === 0 ? "600 " : ""}${l.px}px system-ui, sans-serif`; const cx = l.x + l.w / 2, cy = l.y + l.h / 2; ctx.textAlign = "center";

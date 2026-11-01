@@ -54,7 +54,7 @@ export default function Canvas() {
     const provisional = Uint8Array.from(idx, (i) => snap.points.provisional[i]); const newest = newestRows(snap.points, idx, 20);
     return { x: target.x, y: target.y, color, cat, catColor, provisional, newest };
   }, [snap, idx, target]);
-  const labels = useMemo(() => (snap && lensPos && ctx ? lensLabels(url.lens, snap.points, lensPos, { questions: snap.labels.questions, subOrder: ctx.subOrder, terrainLabels: snap.labels.labels }) : []), [snap, lensPos, url.lens, ctx]);
+  const labels = useMemo(() => (snap && lensPos && ctx && idx ? lensLabels(url.lens, snap.points, lensPos, { questions: snap.labels.questions, subOrder: ctx.subOrder, terrainLabels: snap.labels.labels }, idx) : []), [snap, lensPos, url.lens, ctx, idx]);
   const selectedRow = useMemo(() => (snap && idx && url.sel ? idx.indexOf(snap.points.ids.indexOf(url.sel)) : -1), [snap, idx, url.sel]);
 
   const select = useCallback((xId: string) => { setUrl((u) => ({ ...u, sel: xId })); void loadMeta(); }, [loadMeta]);
