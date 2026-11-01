@@ -35,3 +35,11 @@ cd batch && uv sync && uv run research-map-batch run --dry-run
 ## Data notice
 
 Post content belongs to the author. Snapshots, vectors and enrichment live in MongoDB and Vercel Blob, never in this repository. Code is MIT licensed.
+
+## Deployment
+
+- **Vercel**: project `research-map` on team `hermesloom`; production domain `research.nalenz.org` (CNAME at the DNS provider → Vercel). Env vars live in the Vercel project; `vercel env pull .env.vercel --environment development` fetches them locally. A Blob store (`research-map-canvas`) is connected to the project (OIDC inside Vercel, `BLOB_READ_WRITE_TOKEN` elsewhere).
+- **Daily cron**: `vercel.ts` schedules `GET /api/cron/ingest` at 04:00 UTC; the route checks `CRON_SECRET`. `?force=1` republishes without new posts.
+- **Batch re-layout**: GitHub Actions `batch-relayout` (manual, or `repository_dispatch: relayout` sent by the cron when provisional posts exceed the threshold). Needs repository secrets `MONGODB_URI`, `OPENAI_API_KEY`, `CRON_SECRET`.
+- **First-time data**: `pnpm seed:questions`, then `pnpm bootstrap --file <timeline export> --stage all`, then `cd batch && uv run research-map-batch run`, then `pnpm bootstrap --stage grade`, then `curl -H "Authorization: Bearer $CRON_SECRET" https://research.nalenz.org/api/cron/ingest?force=1`.
+- **Owner mode**: press Shift+O twice on the map, enter `OWNER_SECRET`.
