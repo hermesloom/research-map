@@ -84,6 +84,8 @@ export class MapEngine {
     if (!this.service.has(key)) { const now = performance.now(); for (const L of this.layers) if (!L.out) { L.out = true; L.t0 = now; } this.dirty = true; }   // the old terrain no longer matches: fade it out now, not when the new one arrives
     this.service.request(key, input, (k, mesh) => { if (this.destroyed || k !== this.wantedKey) return; this.showTerrain(k, mesh); });
   }
+  /** No terrain for this view: fade out whatever is showing and ignore pending builds. */
+  clearTerrain() { this.wantedKey = null; const now = performance.now(); for (const L of this.layers) if (!L.out) { L.out = true; L.t0 = now; } this.dirty = true; }
   private showTerrain(key: string, mesh: TerrainMesh) {
     const now = performance.now();
     this.layers = this.layers.filter((L) => { if (L.out) { L.layer?.dispose(); return false; } return true; });   // at most one outgoing + one incoming layer

@@ -6,7 +6,7 @@ export interface LensDef { id: LensId; name: string; purpose: string; preserves:
 export const LENSES: LensDef[] = [
   { id: "terrain", name: "Topic terrain", purpose: "Where posts sit relative to each other by meaning; density shows the themes I keep returning to.", preserves: ["semantic neighbourhoods", "cluster membership"], drops: ["time", "relevance to the question (only colour intensity)"] },
   { id: "question", name: "Around the question", purpose: "How directly each post speaks to the core question; the question sits at the centre.", preserves: ["angular neighbourhoods from the terrain", "graded relevance as radius"], drops: ["exact semantic distance"] },
-  { id: "time", name: "Time strata", purpose: "How the inquiry unfolded: months left to right, sub-questions as rows.", preserves: ["chronology", "sub-question attachment"], drops: ["semantic neighbourhoods"] },
+  { id: "time", name: "Time strata", purpose: "How the inquiry unfolded: months left to right, sub-questions as rows.", preserves: ["chronology", "sub-question attachment"], drops: ["semantic neighbourhoods", "density terrain"] },
 ];
 
 const hash01 = (s: string, salt: number) => { let h = 2166136261 ^ salt; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return ((h >>> 0) % 10007) / 10007; };

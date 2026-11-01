@@ -47,8 +47,8 @@ export default function Canvas() {
     const cat = Uint16Array.from(idx, (i) => (snap.points.leaf[i] < 0 ? 0 : snap.points.leaf[i] + 1));
     return { x: target.x, y: target.y, rgba: rgbaForRows(snap.points, idx), cat, catRGB: catRGBFor(snap.points) };
   }, [snap, idx, target]);
-  // Terrain is keyed by lens + visible rows; the engine builds it off the main thread and caches it.
-  const terrain = useMemo(() => (data && idx ? { key: terrainKey(url.lens, idx, data.x, data.y), input: { x: data.x, y: data.y, cat: data.cat, catRGB: data.catRGB } } : null), [data, idx, url.lens]);
+  // Terrain is keyed by lens + visible rows + positions; the engine builds it off the main thread and caches it. The time strata lens shows no terrain (owner's choice: rows and months carry the structure there).
+  const terrain = useMemo(() => (data && idx && url.lens !== "time" ? { key: terrainKey(url.lens, idx, data.x, data.y), input: { x: data.x, y: data.y, cat: data.cat, catRGB: data.catRGB } } : null), [data, idx, url.lens]);
   const labels = useMemo(() => (snap && lensPos && ctx && idx ? lensLabels(url.lens, snap.points, lensPos, { questions: snap.labels.questions, subOrder: ctx.subOrder, terrainLabels: snap.labels.labels }, idx) : []), [snap, lensPos, url.lens, ctx, idx]);
   const fitAnchors = useMemo(() => lensAnchors(labels), [labels]);
   const rowsKey = useMemo(() => (idx ? terrainKey("rows", idx, new Float32Array(0), new Float32Array(0)) : ""), [idx]);

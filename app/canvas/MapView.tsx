@@ -27,7 +27,7 @@ const MapView = forwardRef<MapHandle, Props>(function MapView({ data, rowsKey, t
   }, []);
   useEffect(() => { if (!data || !engine.current) return; const snap = lastRows.current !== rowsKey; lastRows.current = rowsKey; engine.current.setData(data, initialCamera, { snap, fitAnchors: latest.current.fitAnchors, fitFill: latest.current.lens === "time" ? 0.6 : 0.85 }); }, [data]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!target || !engine.current) return; const lensChanged = lastLens.current !== lens; lastLens.current = lens; engine.current.setTarget(target.x, target.y, { refit: lensChanged, fitFill: lens === "time" ? 0.6 : 0.85, fitAnchors }); }, [target, lens]);   // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (terrain && engine.current) engine.current.setTerrain(terrain.key, terrain.input); }, [terrain]);
+  useEffect(() => { if (!engine.current) return; if (terrain) engine.current.setTerrain(terrain.key, terrain.input); else engine.current.clearTerrain(); }, [terrain]);
   useEffect(() => { engine.current?.setLabels(labels); }, [labels]);
   useEffect(() => { engine.current?.setSelected(selectedRow); }, [selectedRow]);
   useImperativeHandle(ref, () => ({ flyTo: (x, y, s) => engine.current?.flyTo(x, y, s), fit: () => engine.current?.fit(), camera: () => engine.current?.camera ?? null }), []);

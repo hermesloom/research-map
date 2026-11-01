@@ -3,9 +3,10 @@ import { GL_ARGS } from "./hook";
 test.use({ viewport: { width: 1200, height: 800 }, launchOptions: { args: GL_ARGS } });
 
 for (const lens of ["terrain", "question", "time"]) {
-  test(`${lens} lens: terrain is built and post titles appear once each visible point has 100 px of room`, async ({ page }) => {
+  test(`${lens} lens: ${lens === "time" ? "no terrain" : "terrain is built"} and post titles appear once each visible point has 100 px of room`, async ({ page }) => {
     await page.goto(`/?g=0&lens=${lens}`); await expect(page.locator("canvas").first()).toBeVisible({ timeout: 30000 });
-    await page.waitForFunction(() => !!window.__map && window.__map.stats().terrain !== null && window.__map.stats().terrain!.categories > 0, null, { timeout: 30000 });
+    if (lens === "time") { await page.waitForFunction(() => !!window.__map && window.__map.stats().points > 0, null, { timeout: 30000 }); await page.waitForTimeout(2500); expect((await page.evaluate(() => window.__map.stats().terrain))).toBeNull(); }
+    else await page.waitForFunction(() => !!window.__map && window.__map.stats().terrain !== null && window.__map.stats().terrain!.categories > 0, null, { timeout: 30000 });
     // at the fitted view there is no room for titles (room < 100 px)
     await page.waitForTimeout(600); const fit = await page.evaluate(() => ({ spacing: window.__map.stats().spacingPx, titles: window.__map.labels().filter((l) => l.level === 2).length }));
     expect(fit.spacing).toBeLessThan(100); expect(fit.titles).toBe(0);
