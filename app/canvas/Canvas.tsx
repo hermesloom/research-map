@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { EmbeddingView, type ViewportState, type DataPoint } from "embedding-atlas/react";
 import { useSnapshot } from "./useSnapshot";
-import { lensXY, tween } from "./lenses";
+import { lensXY, lensLabels, tween } from "./lenses";
 import { categoryColors, categoryIndex, visibleMask } from "./colors";
 import { parseUrlState, serializeUrlState, type UrlState } from "./urlState";
 import { probeWebGPU } from "./webgpu";
@@ -60,11 +60,7 @@ export default function Canvas() {
     idx.forEach((i, r) => { x[r] = xy.x[i]; y[r] = xy.y[i]; category[r] = categoryIndex(snap.points.leaf[i], snap.points.grade[i]); });
     return { x, y, category, idx };
   }, [snap, xy, mask]);
-  const labels = useMemo(() => {
-    if (!snap) return [];
-    if (url.lens === "terrain") return snap.labels.labels;
-    return snap.labels.questions.filter((q) => q.parentId === "core").map((q, i) => ({ x: 0, y: -(i + 0.4), content: q.text, level: 0, priority: 1000 }));
-  }, [snap, url.lens]);
+  const labels = useMemo(() => (snap && xy ? lensLabels(url.lens, snap.points, xy, { questions: snap.labels.questions, subOrder: ctx?.subOrder ?? [], terrainLabels: snap.labels.labels }) : []), [snap, xy, url.lens, ctx]);
 
   if (error) return <div style={{ padding: 24 }}>Could not load the map: {error}</div>;
   if (!snap || !data || gpu === null) return <div style={{ padding: 24 }}>Loading map…</div>;
@@ -85,7 +81,7 @@ export default function Canvas() {
           customOverlay={{ class: CardOverlay, props: { snap, idx: data.idx, scale, xy: { x: data.x, y: data.y }, selected: url.sel, loadMeta } }}
         />
       ) : (
-        <CanvasFallback data={data} labels={labels as never} snap={snap} viewport={viewport} onViewport={setViewport}
+        <CanvasFallback data={data} labels={labels} snap={snap} viewport={viewport} onViewport={setViewport}
           onPick={(row) => { const i = data.idx[row]; setUrl((u) => ({ ...u, sel: snap.points.ids[i] })); void loadMeta(); }} />
       )}
       {!gpu && <div className="fallback-note dim small">WebGL fallback: no density terrain or cards in this browser.</div>}

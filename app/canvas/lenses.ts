@@ -13,9 +13,13 @@ const hash01 = (s: string, salt: number) => { let h = 2166136261 ^ salt; for (le
 
 export function terrainXY(p: PointsFile) { return { x: Float32Array.from(p.x), y: Float32Array.from(p.y) }; }
 
-export function questionXY(p: PointsFile, centerId: string) {
+/** Centre and ring radius of the question lens: the terrain centroid and an eighth of the x extent. */
+export function questionGeometry(p: PointsFile) {
   const n = p.count; const cx = p.x.reduce((a, b) => a + b, 0) / n, cy = p.y.reduce((a, b) => a + b, 0) / n;
-  const ext = Math.max(...p.x) - Math.min(...p.x) || 1; const R = ext / 8;
+  const ext = Math.max(...p.x) - Math.min(...p.x) || 1; return { cx, cy, R: ext / 8 };
+}
+export function questionXY(p: PointsFile, centerId: string) {
+  const n = p.count; const { cx, cy, R } = questionGeometry(p);
   const x = new Float32Array(n), y = new Float32Array(n);
   for (let i = 0; i < n; i++) {
     if (p.ids[i] === centerId) { x[i] = cx; y[i] = cy; continue; }
@@ -47,4 +51,17 @@ export function lensXY(id: LensId, p: PointsFile, ctx: { centerId: string; prima
 export function tween(a: Float32Array, b: Float32Array, t: number, out: Float32Array) {
   const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   for (let i = 0; i < a.length; i++) out[i] = a[i] + (b[i] - a[i]) * e; return out;
+}
+
+export type LensLabel = { x: number; y: number; content: string | { image: string; width: number; height: number }; level: number; priority: number };
+/** Labels for the active lens. Terrain uses the batch job's labels; the other lenses label their own geometry. */
+export function lensLabels(id: LensId, p: PointsFile, xy: { x: Float32Array; y: Float32Array }, ctx: { questions: { id: string; text: string; parentId: string | null }[]; subOrder: string[]; terrainLabels: LensLabel[] }): LensLabel[] {
+  if (id === "terrain") return ctx.terrainLabels;
+  if (id === "question") {
+    const { cx, cy, R } = questionGeometry(p); const core = ctx.questions.find((q) => q.parentId === null)?.text ?? "The question";
+    return [{ x: cx, y: cy, content: core, level: 0, priority: 2000 }, ...[3, 2, 1, 0].map((g) => ({ x: cx, y: cy + (3.5 - g) * R, content: `relevance ${g}`, level: 1, priority: 100 + g }))];
+  }
+  let minX = Infinity; for (let i = 0; i < xy.x.length; i++) if (xy.x[i] < minX) minX = xy.x[i]; if (!Number.isFinite(minX)) minX = 0;
+  const text = (sid: string) => ctx.questions.find((q) => q.id === sid)?.text ?? sid;
+  return [...ctx.subOrder.map((sid, i) => ({ x: minX - 0.5, y: -(i + 0.4), content: text(sid), level: 0, priority: 1000 - i })), { x: minX - 0.5, y: -(ctx.subOrder.length + 0.4), content: "unassigned", level: 0, priority: 10 }];
 }
