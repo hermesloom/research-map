@@ -137,14 +137,14 @@ export class MapEngine {
     const mx = (vis.gx1 - vis.gx0) * 0.5, my = (vis.gy1 - vis.gy0) * 0.5;
     const gx0 = Math.max(0, vis.gx0 - mx), gy0 = Math.max(0, vis.gy0 - my), gx1 = Math.min(T.gw, vis.gx1 + mx), gy1 = Math.min(T.gh, vis.gy1 + my);
     const fullW = Math.ceil((gx1 - gx0) / cellsPerPx), fullH = Math.ceil((gy1 - gy0) / cellsPerPx); if (fullW <= 0 || fullH <= 0) return null;
-    const step = L && L.scale === cam.scale ? 1 : 2;   // same zoom (pan past margin) → full res directly; new zoom → quick pass first
+    const step = L && L.scale === cam.scale ? 2 : 4;   // interim: quarter-res while zooming, half-res refine (full-res per-pixel work was too slow on the main thread)
     const render = (st: number) => {
       const rw = Math.ceil(fullW / st), rh = Math.ceil(fullH / st); const data = renderBandImage(T.grid, T.levels, T.rgb, { gx0, gy0, cellsPerPx: cellsPerPx * st }, rw, rh);
       const c = document.createElement("canvas"); c.width = rw; c.height = rh; c.getContext("2d")!.putImageData(new ImageData(data, rw, rh), 0, 0);
       this.bandLayer = { canvas: c, scale: cam.scale, gx0, gy0, step: st, w: fullW, h: fullH }; this.dirty = true;
     };
     render(step);
-    if (step > 1) { if (this.refineTimer) clearTimeout(this.refineTimer); this.refineTimer = window.setTimeout(() => { this.refineTimer = null; if (this.cam.scale === cam.scale && this.bandLayer?.step === 2) render(1); }, 180); }
+    if (step > 2) { if (this.refineTimer) clearTimeout(this.refineTimer); this.refineTimer = window.setTimeout(() => { this.refineTimer = null; if (this.cam.scale === cam.scale && this.bandLayer?.step === 4) render(2); }, 250); }
     return this.bandLayer;
   }
 
@@ -186,11 +186,8 @@ export class MapEngine {
       let path = groups.get(d.color[i]); if (!path) { path = new Path2D(); groups.set(d.color[i], path); } path.moveTo(X + radius, Y); path.arc(X, Y, radius, 0, Math.PI * 2);
     }
     for (const [color, path] of groups) { ctx.fillStyle = color; ctx.fill(path); }
-    // rings: provisional (hollow white), newest (gold halo + trail), selected (blue)
+    // selection ring only: no special markings for new or provisional posts
     ctx.lineWidth = 1.2;
-    if (d.newest.length) { ctx.strokeStyle = "rgba(255,217,102,0.25)"; ctx.beginPath(); d.newest.slice().reverse().forEach((r, k) => { const p = project(cam, this.vp, pos.x[r], pos.y[r]); if (k === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); }); ctx.stroke();
-      ctx.strokeStyle = "rgba(255,217,102,0.6)"; for (const r of d.newest) { const p = project(cam, this.vp, pos.x[r], pos.y[r]); ctx.beginPath(); ctx.arc(p.x, p.y, radius + 7, 0, Math.PI * 2); ctx.stroke(); } }
-    ctx.strokeStyle = "rgba(255,255,255,0.8)"; for (let i = 0; i < pos.x.length; i++) if (d.provisional[i]) { const p = project(cam, this.vp, pos.x[i], pos.y[i]); if (p.x < -20 || p.y < -20 || p.x > w + 20 || p.y > h + 20) continue; ctx.beginPath(); ctx.arc(p.x, p.y, radius + 3.5, 0, Math.PI * 2); ctx.stroke(); }
     if (this.selected >= 0 && this.selected < pos.x.length) { const p = project(cam, this.vp, pos.x[this.selected], pos.y[this.selected]); ctx.strokeStyle = "#9cc4ff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, radius + 9, 0, Math.PI * 2); ctx.stroke(); ctx.lineWidth = 1.2; }
     // labels
     const placed = placeLabels(this.labels, cam, this.vp, (t, px) => this.measure(t, px), cam.scale / (this.fitScale || 1));

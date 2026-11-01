@@ -50,7 +50,7 @@ export default function TopBar({ url, setUrl, snap, onFlyTo }: { url: UrlState; 
         <div className="about">
           <p>Every post of <a href="https://x.com/sigalor" target="_blank" rel="noopener">@sigalor</a>, placed automatically around one research question:</p>
           <blockquote>{CORE}</blockquote>
-          <p className="dim">Posts keep one identity across lenses. Colour = topic, intensity = graded relevance to the question. Hollow rings are provisional placements awaiting the next re-layout. Source and design: <a href="https://github.com/hermesloom/research-map" target="_blank" rel="noopener">hermesloom/research-map</a>.</p>
+          <p className="dim">Posts keep one identity across lenses. Colour = topic, intensity = graded relevance to the question. Source and design: <a href="https://github.com/hermesloom/research-map" target="_blank" rel="noopener">hermesloom/research-map</a>.</p>
         </div>
       )}
     </div>
