@@ -17,6 +17,13 @@ class ThemeName(BaseModel):
     description: str
 
 
+class ThemeNames(BaseModel):
+    labels: list[str]
+
+
+BOILERPLATE = "Do not reuse the research question's own words (explicit, understandable, interoperable, changeable, coordination, structures, plural, universal, representation, reality) unless the posts are literally about that word; name the concrete subject matter instead."
+
+
 def pick_examples(E, idx_in, idx_out, n_in=20, n_out=10):
     """Clio-style exemplars: closest-to-centroid inside the cluster, nearest outsiders for contrast."""
     En = E / np.linalg.norm(E, axis=1, keepdims=True)
@@ -32,13 +39,13 @@ def name_cluster(texts_in, texts_out, llm):
     prompt = (
         f"Research question of the author: {QUESTION}\n\nPosts IN the cluster:\n" + "\n".join(f"- {t[:300]}" for t in texts_in)
         + "\n\nPosts NEAR but NOT in the cluster (do not describe these):\n" + "\n".join(f"- {t[:200]}" for t in texts_out)
-        + "\n\nName the cluster: a 2-5 word specific English Title Case label (no punctuation) that distinguishes the in-cluster posts from the nearby ones, plus a one-sentence description."
+        + "\n\nName the cluster: a 2-5 word specific English Title Case label (no punctuation) that distinguishes the in-cluster posts from the nearby ones, plus a one-sentence description. " + BOILERPLATE
     )
     return llm(prompt, ClusterName)
 
 
 def build_themes(cluster_labels, label_vectors, llm, k=None):
-    """Group leaf labels into 5–9 themes by k-means on label embeddings; the LLM names each theme."""
+    """Group leaf labels into 5–9 themes by k-means on label embeddings; ONE LLM call names all groups so the names come out distinct."""
     cids = sorted(cluster_labels)
     n = len(cids)
     if n == 0:
@@ -46,18 +53,17 @@ def build_themes(cluster_labels, label_vectors, llm, k=None):
     k = k or int(min(9, max(5, round(n ** 0.5))))
     k = min(k, n)
     km = KMeans(n_clusters=k, n_init=10, random_state=0).fit(label_vectors)
-    themes = []
-    for t in range(k):
-        members = [cids[i] for i in range(n) if km.labels_[i] == t]
-        if not members:
-            continue
-        prompt = (
-            f"Research question: {QUESTION}\n\nThese topic labels belong together on a map:\n" + "\n".join(f"- {cluster_labels[c]}" for c in members)
-            + "\n\nGive a 3-6 word Title Case theme name covering all of them and a one-sentence description."
-        )
-        name = llm(prompt, ThemeName)
-        themes.append({"id": len(themes), "label": name.label, "description": name.description, "clusterIds": members})
-    return themes
+    groups = [[cids[i] for i in range(n) if km.labels_[i] == t] for t in range(k)]
+    groups = [g for g in groups if g]
+    prompt = (
+        f"Research question of the author: {QUESTION}\n\nA map of the author's posts has these groups of topic labels. Give each group a 3-6 word Title Case theme name.\n"
+        + "\n".join(f"Group {i + 1}:\n" + "\n".join(f"- {cluster_labels[c]}" for c in g) for i, g in enumerate(groups))
+        + f"\n\nReturn exactly {len(groups)} names in group order. The names must be clearly DISTINCT from each other (a reader must tell the groups apart at a glance). " + BOILERPLATE
+    )
+    names = llm(prompt, ThemeNames).labels
+    if len(names) < len(groups):
+        names = names + [f"Theme {i + 1}" for i in range(len(names), len(groups))]
+    return [{"id": i, "label": names[i].strip() or f"Theme {i + 1}", "description": "", "clusterIds": g} for i, g in enumerate(groups)]
 
 
 def _overrides():

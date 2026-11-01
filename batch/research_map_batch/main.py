@@ -37,6 +37,7 @@ def cli():
     r.add_argument("--force-publish", action="store_true")
     r.add_argument("--dry-run", action="store_true")
     r.add_argument("--skip-questions", action="store_true")
+    r.add_argument("--no-reuse", action="store_true", help="ignore previous cluster labels (re-name everything)")
     a = ap.parse_args()
     db = connect()
     llm, embed = make_llm()
@@ -51,6 +52,8 @@ def cli():
     print(f"residual={lay['residual']}", file=sys.stderr)
     raw = cluster(lay["x10"])
     mapping, reused = match_clusters(raw, ids, prev["points"] if prev else [], prev["clusters"] if prev else [])
+    if a.no_reuse:
+        reused = {}
     stable = np.array([mapping[int(l)] for l in raw])
     print(f"clusters={len(set(stable.tolist()) - {-1})} noise={np.mean(stable == -1):.1%} reused={len(reused)}", file=sys.stderr)
     norm = load_normalized(db)

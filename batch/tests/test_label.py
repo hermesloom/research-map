@@ -6,7 +6,8 @@ class FakeLLM:
     def __call__(self, prompt, model):
         self.calls.append(prompt)
         if model is ClusterName: return ClusterName(label="Fake Cluster", description="d")
-        return ThemeName(label="Fake Theme", description="d")
+        import re; n = len(re.findall(r"^Group \d+:", prompt, flags=re.M))
+        from research_map_batch.label import ThemeNames; return ThemeNames(labels=[f"Fake Theme {i + 1}" for i in range(max(n, 1))])
 
 def fake_embed(texts):
     rng = np.random.default_rng(len(texts)); return rng.normal(size=(len(texts), 8))
@@ -32,3 +33,21 @@ def test_label_all_reuses_and_overrides(blobs, tmp_path, monkeypatch):
 def test_build_themes_k_bounds():
     labels = {i: f"L{i}" for i in range(40)}; vecs = np.random.default_rng(0).normal(size=(40, 8))
     themes = build_themes(labels, vecs, FakeLLM()); assert 5 <= len(themes) <= 9 and sorted(c for t in themes for c in t["clusterIds"]) == list(range(40))
+
+def test_build_themes_names_all_groups_in_one_contrastive_call():
+    from research_map_batch.label import ThemeNames
+    class OneCall:
+        def __init__(self): self.calls = []
+        def __call__(self, prompt, model):
+            self.calls.append((prompt, model)); assert model is ThemeNames
+            import re; n = len(re.findall(r"^Group \d+:", prompt, flags=re.M)); return ThemeNames(labels=[f"Theme {i}" for i in range(n)])
+    labels = {i: f"Label {i}" for i in range(12)}; vecs = np.random.default_rng(1).normal(size=(12, 8))
+    llm = OneCall(); themes = build_themes(labels, vecs, llm)
+    assert len(llm.calls) == 1                                           # one call names every theme, so names can be made distinct
+    prompt = llm.calls[0][0]
+    assert "Group 1:" in prompt and "distinct" in prompt.lower() and "do not reuse" in prompt.lower()
+    assert sorted(t["label"] for t in themes) == sorted(f"Theme {i}" for i in range(len(themes)))
+
+def test_cluster_prompt_forbids_question_boilerplate():
+    llm = FakeLLM(); name_cluster(["a"], ["b"], llm)
+    assert "do not reuse" in llm.calls[0].lower() and "interoperable" in llm.calls[0].lower()
