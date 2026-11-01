@@ -2,3 +2,10 @@
 html, body { margin: 0; padding: 0; height: 100dvh; background: #0b0d10; color: #e6e6e6; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 * { box-sizing: border-box; }
 a { color: #9cc4ff; }
+
+/* cards drawn by the overlay at close zoom */
+.card { background: #15181d; border: 1px solid #2a2f37; border-radius: 8px; padding: 8px 10px; font-size: 12px; line-height: 1.35; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
+.card.g1 { opacity: .7 } .card.g0 { opacity: .5 } .card.provisional { border-style: dashed }
+.card .t { font-weight: 600; margin-bottom: 4px } .card .g { opacity: .9 }
+.card .m { opacity: .7; margin-top: 4px; display: flex; gap: 8px; flex-wrap: wrap } .card .prov { color: #ffd966 }
+.card .x { opacity: .6; margin-top: 4px } .card a { color: #9cc4ff }
