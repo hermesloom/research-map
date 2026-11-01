@@ -1,0 +1,30 @@
+name: batch-relayout
+on:
+  workflow_dispatch:
+    inputs:
+      force_publish:
+        type: boolean
+        default: false
+        description: Publish even if the Procrustes residual exceeds the gate
+  repository_dispatch:
+    types: [relayout]
+jobs:
+  relayout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Install
+        run: uv python install 3.12 && cd batch && uv sync --python 3.12
+      - name: Re-layout
+        run: cd batch && uv run research-map-batch run ${{ (github.event_name == 'workflow_dispatch' && inputs.force_publish) && '--force-publish' || '' }}
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DB: research_map
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_TEXT_MODEL: gpt-5.4-mini
+          EMBEDDING_MODEL: text-embedding-3-large
+          EMBEDDING_DIMS: "1024"
+      - name: Trigger publish
+        run: curl -fsS -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "https://research.nalenz.org/api/cron/ingest?force=1" > /dev/null
