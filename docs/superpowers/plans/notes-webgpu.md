@@ -13,3 +13,7 @@ Findings:
 3. Consequence: Task 27B (deck.gl WebGL2 fallback) is required, and the WebGPU probe becomes async.
 
 Addendum (full Chromium 156, new headless, same flags): adapter present but "WebGPU adapter does not support required features: shader-f16" → Embedding Atlas still does not render. Conclusion for CI: the Playwright smoke test cannot exercise the WebGPU renderer on a headless Linux runner; it exercises the deck.gl WebGL2 fallback instead, and the WebGPU path is verified manually in a desktop browser.
+
+## Decision 2026-11-01 (after live testing by the owner)
+
+Embedding Atlas on the owner's WebGPU browser ran at ~1 fps even after removing all per-frame prop churn, and the owner asked for an approach that does not rely on WebGPU and runs well on many devices. The renderer was replaced by a plain **Canvas 2D engine** (`app/canvas/render/*`, `app/canvas/Canvas2D.tsx`) that reproduces the density-terrain look: a kernel-density grid with per-cell dominant cluster, contour bands and marching-squares contour lines in cluster colours baked once into a 2048-px raster; batched point paths; collision-placed hierarchical labels; DOM cards at close zoom; scale bar and point count. `embedding-atlas` and `deck.gl` were removed. No GPU API is used anywhere.

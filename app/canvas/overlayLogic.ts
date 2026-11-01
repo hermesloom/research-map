@@ -17,7 +17,7 @@ export function cardHtml(meta: MetaFile, i: number, point: { grade: number; prov
 <div class="x">Julian · @sigalor · <a href="${esc(point.url)}" target="_blank" rel="noopener">${esc(point.date ?? "open on X")}</a></div></div>`;
 }
 
-export type ProxyLike = { location: (x: number, y: number) => { x: number; y: number }; width: number; height: number };
+export type ProxyLike = { location: (x: number, y: number) => { x: number; y: number }; width: number; height: number; zoomRel?: number };
 /** Recover the (affine) data→pixel mapping from two projections so clicks can be mapped back to data space. */
 export function affineFromProxy(proxy: ProxyLike) {
   const o = proxy.location(0, 0), px = proxy.location(1, 0), py = proxy.location(0, 1);

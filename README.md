@@ -10,7 +10,7 @@ Every post has one identity and lives in several lenses (topic terrain, distance
 
 Three runtimes share one MongoDB Atlas database and one Vercel Blob store; the browser reads only from Blob.
 
-1. **Next.js app on Vercel** — the canvas (Apple Embedding Atlas, WebGPU), a manifest route, and a daily cron route.
+1. **Next.js app on Vercel** — the canvas (a plain Canvas 2D engine: density contours, points, hierarchical labels; no WebGPU/WebGL dependency), a manifest route, and a daily cron route.
 2. **Daily TypeScript pipeline** (inside the cron) — ingest → enrich → normalize → embed → place → grade → publish. Idempotent and resumable.
 3. **Python batch job on GitHub Actions** — warm-started, Procrustes-aligned layout, clustering, hierarchical LLM labels with reuse, sub-question tree, trails. Writes versioned layouts.
 
