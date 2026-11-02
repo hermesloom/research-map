@@ -12,6 +12,7 @@ import TopBar from "./TopBar";
 import Inspector from "./Inspector";
 import Filters, { type FilterState } from "./Filters";
 import { recentHighlights, type Highlight } from "./recent";
+import IngestShortcut from "./IngestShortcut";
 
 const CENTER_ID = process.env.NEXT_PUBLIC_RESEARCH_QUESTION_POST_ID ?? "2115703316281778260";
 
@@ -65,6 +66,7 @@ export default function Canvas() {
       {error && <div style={{ padding: 24 }}>Could not load the map: {error}</div>}
       {!error && !snap && <div style={{ padding: 24 }}>Loading map…</div>}
       {snap && <MapView ref={map} data={data} rowsKey={rowsKey} target={target} lens={url.lens} labels={labels} fitAnchors={fitAnchors} terrain={terrain} selectedRow={selectedRow} highlights={highlights} initialCamera={initialCamera} onCamera={onCamera} onPick={onPick} />}
+      <IngestShortcut />
       {snap && <TopBar url={url} setUrl={setUrl} snap={snap} onFlyTo={flyTo} />}
       {snap && <Filters snap={snap} filters={filters} setFilters={setFilters} url={url} setUrl={setUrl} loadMeta={loadMeta} />}
       {snap && url.sel && <Inspector snap={snap} xId={url.sel} onClose={() => setUrl((u) => ({ ...u, sel: undefined }))} loadMeta={loadMeta} />}

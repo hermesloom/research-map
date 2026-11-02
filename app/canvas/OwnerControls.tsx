@@ -1,13 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
 import type { Snapshot } from "./useSnapshot";
+import { doubleShift } from "./shortcuts";
 
 /** Appears inside the inspector for the owner only. Login via Shift+O twice (keeps the public UI clean). */
 export default function OwnerControls({ snap, xId }: { snap: Snapshot; xId: string }) {
   const [owner, setOwner] = useState(false); const [login, setLogin] = useState(false); const [secret, setSecret] = useState(""); const [msg, setMsg] = useState("");
   useEffect(() => { fetch("/api/owner/override").then((r) => r.json()).then((j) => setOwner(!!j.owner)).catch(() => {}); }, []);
   useEffect(() => {
-    let last = 0; const onKey = (e: KeyboardEvent) => { if (e.shiftKey && e.key.toLowerCase() === "o") { const now = Date.now(); if (now - last < 600) setLogin(true); last = now; } };
+    const onKey = doubleShift("o", () => setLogin(true));
     window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey);
   }, []);
   const i = snap.points.ids.indexOf(xId);
