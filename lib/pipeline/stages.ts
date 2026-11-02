@@ -22,12 +22,14 @@ export interface StageDeps {
 }
 export const defaultDeps = (db: Db): StageDeps => ({ db, fetchImpl: fetchWithTimeout(fetch, 25_000), enrichUrl, describeImage, normalizeItem, embedTexts, gradeItem, placeItem, now: () => new Date(), log: console.log });
 const ORDER: Stage[] = ["ingested", "enriched", "normalized", "embedded", "placed", "graded"];
+/** A post whose link Firecrawl keeps failing on is not held back forever: after this many deferred runs, or this long after posting, it gets a thin record and moves on. */
+export const ENRICH_MAX_DEFERRALS = 2; export const ENRICH_MAX_WAIT_MS = 48 * 3600_000;
 export const nextStage = (s: Stage): Stage | null => ORDER[ORDER.indexOf(s) + 1] ?? null;
 const EXCLUDED = ["replyToOther", "retweet"] as const;
 
 /** ingested → enriched. Replies to others and retweets skip straight to graded (kept, never on the canvas). */
 export async function stageEnrich(d: StageDeps, limit: number) {
-  const c = collections(d.db); const out = { done: 0, deferred: 0, errors: 0 };
+  const c = collections(d.db); const out = { done: 0, deferred: 0, deferredQuota: 0, deferredTransient: 0, errors: 0 };
   await c.items.updateMany({ stage: "ingested", kind: { $in: [...EXCLUDED] } }, { $set: { stage: "graded" } });
   const todo = await c.items.find({ stage: "ingested" }).sort({ createdAt: 1 }).limit(limit).toArray();
   for (const it of todo) {
@@ -37,8 +39,13 @@ export async function stageEnrich(d: StageDeps, limit: number) {
       const url = it.urls.find((u) => !u.isMedia && !/^(x|twitter)\.com$/.test(u.domain))?.expandedUrl;
       const img = it.media.find((m) => m.type === "photo")?.url ?? it.media[0]?.previewUrl;
       if (url) {
-        const f = await d.enrichUrl(url, { fetchImpl: d.fetchImpl, firecrawlKey: env().FIRECRAWL_API_KEY, userAgent: USER_AGENT });
-        if (f.deferred) { out.deferred++; continue; }
+        const giveUp = (it.enrichDeferrals ?? 0) >= ENRICH_MAX_DEFERRALS || d.now().getTime() - new Date(it.createdAt).getTime() > ENRICH_MAX_WAIT_MS;
+        const f = await d.enrichUrl(url, { fetchImpl: d.fetchImpl, firecrawlKey: env().FIRECRAWL_API_KEY, userAgent: USER_AGENT, giveUp });
+        if (f.deferred) {
+          out.deferred++; if (f.deferred === "quota") out.deferredQuota++; else out.deferredTransient++;
+          await c.items.updateOne({ xId: it.xId }, { $set: { stageError: `enrich deferred (${f.deferred}): ${f.reason ?? ""}`.trim() }, $inc: { enrichDeferrals: 1 } });   // visible in /api/status; never a silent park
+          continue;
+        }
         doc = { ...doc, source: f.source, title: f.title, excerpt: f.excerpt, ogImage: f.ogImage, thin: f.thin };
       }
       if (img) {
@@ -48,7 +55,7 @@ export async function stageEnrich(d: StageDeps, limit: number) {
         } catch (e) { doc = { ...doc, imageError: String(e).slice(0, 200) }; }   // a dead/forbidden media URL must not block the post forever: continue with text only
       }
       await c.enrichment.updateOne({ xId: it.xId }, { $set: doc }, { upsert: true });
-      await c.items.updateOne({ xId: it.xId }, { $set: { stage: "enriched" }, $unset: { stageError: "" } }); out.done++;
+      await c.items.updateOne({ xId: it.xId }, { $set: { stage: "enriched" }, $unset: { stageError: "", enrichDeferrals: "" } }); out.done++;
     } catch (e) { out.errors++; await c.items.updateOne({ xId: it.xId }, { $set: { stageError: `enrich: ${String(e).slice(0, 300)}` } }); }
   }
   return out;

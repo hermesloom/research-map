@@ -10,8 +10,9 @@ export function thinRecord(url: string): Fetched {
 const safe = async (f: () => Promise<Fetched | null>) => { try { return await f(); } catch (e) { if (e instanceof QuotaExhausted || e instanceof Transient) throw e; return null; } };
 const paid = async (f: () => Promise<Fetched | null>) => { try { return await f(); } catch (e) { if (e instanceof QuotaExhausted || e instanceof Transient) throw e; throw new Transient(String(e)); } };
 
-/** Never throws, never returns null. `deferred` means Firecrawl credits ran out: retry on a later run. */
-export async function enrichUrl(url: string, ctx: AdapterCtx): Promise<Fetched & { deferred?: boolean }> {
+export type Deferral = "quota" | "transient";
+/** Never throws, never returns null. `deferred: "quota"` = Firecrawl credits ran out; `"transient"` = Firecrawl errored, timed out or was unreachable. Both mean "retry on a later run" unless `ctx.giveUp` is set, in which case a transient failure just skips that rung. */
+export async function enrichUrl(url: string, ctx: AdapterCtx): Promise<Fetched & { deferred?: Deferral; reason?: string }> {
   const host = routeHost(url);
   const order: Array<() => Promise<Fetched | null>> = [];
   if (host === "wikipedia") order.push(() => fetchWikipedia(url, ctx));
@@ -22,11 +23,15 @@ export async function enrichUrl(url: string, ctx: AdapterCtx): Promise<Fetched &
   order.push(() => paid(() => fetchFirecrawl(url, ctx)));
   if (host !== "doi") order.push(() => fetchOpenAlex(url, ctx)); // a DOI may still be embedded in the url
   order.push(async () => { const w = await waybackUrl(url, ctx); return w ? fetchFirecrawl(w, ctx) : null; });
-  try {
-    for (const step of order) { const r = await safe(step); if (r && (r.title || r.excerpt)) return r; }
-  } catch (e) {
-    if (e instanceof QuotaExhausted || e instanceof Transient) return { source: "none", thin: true, deferred: true };
-    throw e;
+  for (const step of order) {
+    let r: Fetched | null;
+    try { r = await safe(step); }
+    catch (e) {
+      if (e instanceof QuotaExhausted) return { source: "none", thin: true, deferred: "quota", reason: e.message };
+      if (e instanceof Transient) { if (ctx.giveUp) continue; return { source: "none", thin: true, deferred: "transient", reason: e.message.slice(0, 200) }; }
+      throw e;
+    }
+    if (r && (r.title || r.excerpt)) return r;
   }
   return thinRecord(url);
 }

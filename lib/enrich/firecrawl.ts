@@ -6,7 +6,7 @@ export const fetchFirecrawl: Adapter = async (url, ctx) => {
   if (!ctx.firecrawlKey) return null;
   const res = await ctx.fetchImpl("https://api.firecrawl.dev/v2/scrape", {
     method: "POST", headers: { Authorization: `Bearer ${ctx.firecrawlKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ url, formats: ["markdown", "summary"], onlyMainContent: true, parsers: [{ type: "pdf", maxPages: 5 }] }),
+    body: JSON.stringify({ url, formats: ["markdown", "summary"], onlyMainContent: true, parsers: [{ type: "pdf", maxPages: 5 }], timeout: 20_000 }),   // Firecrawl gives up before our 25 s fetch abort, so a slow page yields a clean error
   });
   if (res.status === 402) throw new QuotaExhausted("firecrawl credits exhausted");
   if (res.status === 429 || res.status >= 500) throw new Transient(`firecrawl ${res.status}`);

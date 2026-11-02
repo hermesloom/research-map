@@ -4,7 +4,7 @@ import { parseTimeline } from "../x/parse";
 import { fetchNewPosts } from "../x/client";
 import { publishSnapshot } from "../publish";
 import { env } from "../env";
-import { defaultDeps, stageEnrich, stageNormalize, stageEmbed, stagePlace, stageGrade, type StageDeps } from "./stages";
+import { defaultDeps, stageEnrich, stageNormalize, stageEmbed, stagePlace, stageGrade, ENRICH_MAX_DEFERRALS, type StageDeps } from "./stages";
 import type { RunDoc } from "../types";
 
 /** Newest stored post id, compared numerically (string compare is unsafe across id lengths). */
@@ -33,13 +33,14 @@ export async function runDaily(db: Db, deps: RunDeps = {}): Promise<RunDoc> {
   try {
     const ing = await ingestNew(db, { fetchNewPosts: deps.fetchNewPosts ?? fetchNewPosts, now: d.now }); run.counts.ingested = ing.inserted; run.counts.xRequests = ing.requests;
     let changed = ing.inserted > 0;
-    const steps: Array<[string, () => Promise<{ done: number; deferred?: number; errors?: number; skippedNoLayout?: boolean }>]> = [
+    const steps: Array<[string, () => Promise<{ done: number; deferred?: number; deferredQuota?: number; deferredTransient?: number; errors?: number; skippedNoLayout?: boolean }>]> = [
       ["enrich", () => stageEnrich(d, 200)], ["normalize", () => stageNormalize(d, 300)], ["embed", () => stageEmbed(d, 500)], ["place", () => stagePlace(d, 500)], ["grade", () => stageGrade(d, 300)],
     ];
     for (const [name, fn] of steps) {
       if (timeLeft() < 20_000) { run.notes.push(`budget exhausted before ${name}`); break; }
       const r = await fn(); run.counts[name] = r.done ?? 0; if (r.done) changed = true;
-      if (r.deferred) run.notes.push(`${r.deferred} enrichments deferred (firecrawl quota)`);
+      if (r.deferredQuota) run.notes.push(`firecrawl credits exhausted: ${r.deferredQuota} post${r.deferredQuota === 1 ? "" : "s"} wait for the next run`);
+      if (r.deferredTransient) run.notes.push(`firecrawl failed or timed out for ${r.deferredTransient} post${r.deferredTransient === 1 ? "" : "s"}; retried next run, thin record after ${ENRICH_MAX_DEFERRALS} retries or 48 h (see stageError on the item)`);
       if (r.errors) run.errors.push(`${name}: ${r.errors} item errors`);
       if (r.skippedNoLayout) run.notes.push("no published layout yet; placement skipped");
     }

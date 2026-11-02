@@ -49,7 +49,7 @@ describe("enrichUrl ladder", () => {
   });
   it("defers (source none) when firecrawl quota is exhausted", async () => {
     const r = await enrichUrl("https://xtdb.com/", { fetchImpl: seq([[402, "{}"]]), userAgent: "t", firecrawlKey: "k" });
-    expect(r.source).toBe("none"); expect((r as any).deferred).toBe(true);
+    expect(r.source).toBe("none"); expect(r.deferred).toBe("quota"); expect(r.reason).toMatch(/credits/);
   });
   it("thinRecord humanizes the path", () => { expect(thinRecord("https://foo.org/a_b-c/d.pdf").title).toBe("foo.org · a b c d"); });
 });
@@ -58,13 +58,27 @@ describe("transient failures are deferred, not cached as thin", () => {
   it("firecrawl 429/5xx → deferred", async () => {
     for (const code of [429, 500, 503]) {
       const r = await enrichUrl("https://xtdb.com/", { fetchImpl: seq([[code, "{}"]]), userAgent: "t", firecrawlKey: "k" });
-      expect(r.source).toBe("none"); expect((r as any).deferred).toBe(true);
+      expect(r.source).toBe("none"); expect(r.deferred).toBe("transient"); expect(r.reason).toBe(`firecrawl ${code}`);
     }
   });
-  it("network error on the paid rung → deferred", async () => {
+  it("network error or timeout on the paid rung → deferred as transient with the reason", async () => {
     const boom = (async () => { throw new TypeError("fetch failed"); }) as any;
     const r = await enrichUrl("https://xtdb.com/", { fetchImpl: boom, userAgent: "t", firecrawlKey: "k" });
-    expect((r as any).deferred).toBe(true);
+    expect(r.deferred).toBe("transient"); expect(r.reason).toMatch(/fetch failed/);
+    const hung = (async () => { throw new Error("timeout after 25000ms"); }) as any;
+    expect((await enrichUrl("https://www.cs.cmu.edu/~crary/819-f09/Landin66.pdf", { fetchImpl: hung, userAgent: "t", firecrawlKey: "k" })).reason).toMatch(/timeout after 25000ms/);
+  });
+  it("with giveUp, a transient Firecrawl failure skips the rung and the ladder ends in a thin record", async () => {
+    const hung = (async () => { throw new Error("timeout after 25000ms"); }) as any;
+    const r = await enrichUrl("https://www.cs.cmu.edu/~crary/819-f09/Landin66.pdf", { fetchImpl: hung, userAgent: "t", firecrawlKey: "k", giveUp: true });
+    expect(r.deferred).toBeUndefined(); expect(r.source).toBe("thin"); expect(r.title).toBe("cs.cmu.edu · ~crary f09 Landin66");
+  });
+  it("with giveUp, quota exhaustion still defers (credits come back)", async () => {
+    const r = await enrichUrl("https://xtdb.com/", { fetchImpl: seq([[402, "{}"]]), userAgent: "t", firecrawlKey: "k", giveUp: true }); expect(r.deferred).toBe("quota");
+  });
+  it("firecrawl asks the service for its own 20 s timeout", async () => {
+    let body = ""; const spy = (async (_u: string, init: RequestInit) => { body = String(init.body); return new Response("{}", { status: 500 }); }) as any;
+    await enrichUrl("https://xtdb.com/", { fetchImpl: spy, userAgent: "t", firecrawlKey: "k" }); expect(JSON.parse(body).timeout).toBe(20000);
   });
   it("a genuine 404 on a generic page still falls through to thin", async () => {
     const r = await enrichUrl("https://gone.example.org/a", { fetchImpl: seq([[404, "{}"], [200, JSON.stringify({ archived_snapshots: {} })]]), userAgent: "t", firecrawlKey: "k" });

@@ -8,6 +8,8 @@ export interface ItemMedia { mediaKey: string; type: "photo" | "video" | "animat
 export interface Item {
   xId: string; text: string; createdAt: Date; kind: Kind; urls: ItemUrl[]; media: ItemMedia[]; parentId?: string; quotedId?: string; lang?: string;
   publicMetrics?: Record<string, number>; isResearchQuestion: boolean; stage: Stage; stageError?: string; deletedAt?: Date; fetchedAt: Date;
+  /** Runs in which enrichment was deferred (Firecrawl quota or failure); after ENRICH_MAX_DEFERRALS the ladder gives up on Firecrawl. */
+  enrichDeferrals?: number;
 }
 
 export type EnrichSource = "wikipedia" | "oembed" | "arxiv" | "openalex" | "github" | "firecrawl" | "wayback" | "thin" | "none";
