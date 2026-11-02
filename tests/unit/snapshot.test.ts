@@ -42,3 +42,10 @@ describe("display language", () => {
     expect(s.meta.gist[0]).toBe("An English summary.");
   });
 });
+describe("links", () => {
+  it("meta.url and meta.domain are aligned with ids and carry the first non-media url", () => {
+    const linked = item("1", { urls: [{ url: "https://t.co/x", expandedUrl: "https://arxiv.org/abs/1", domain: "arxiv.org", isMedia: false }] });
+    const s = buildSnapshot({ layout, items: [linked, item("2")], enrichment, relations, questions, overrides: [], generatedAt: now });
+    expect(s.meta.url).toEqual(["https://arxiv.org/abs/1", null]); expect(s.meta.domain).toEqual(["arxiv.org", null]);
+  });
+});

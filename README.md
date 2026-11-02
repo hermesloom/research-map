@@ -10,11 +10,27 @@ Every post has one identity and lives in several lenses (topic terrain, distance
 
 Three runtimes share one MongoDB Atlas database and one Vercel Blob store; the browser reads only from Blob.
 
-1. **Next.js app on Vercel** — the canvas (a plain Canvas 2D engine: density contours, points, hierarchical labels; no WebGPU/WebGL dependency), a manifest route, and a daily cron route.
+1. **Next.js app on Vercel** — the canvas (WebGL2 map engine: vector terrain, points, hierarchical labels), the LLM-facing API (`/api/v1`, `/llms.txt`, `/api/mcp`), a manifest route, and a daily cron route.
 2. **Daily TypeScript pipeline** (inside the cron) — ingest → enrich → normalize → embed → place → grade → publish. Idempotent and resumable.
 3. **Python batch job on GitHub Actions** — warm-started, Procrustes-aligned layout, clustering, hierarchical LLM labels with reuse, sub-question tree, trails. Writes versioned layouts.
 
 Design: `docs/superpowers/specs/2026-11-01-research-map-design.md`. Plan: `docs/superpowers/plans/2026-11-01-research-map.md`.
+
+## API for LLMs and agents
+
+Everything the canvas shows is also available as a read-only, self-describing API. Start at [`/llms.txt`](https://research.nalenz.org/llms.txt) or [`/api/v1`](https://research.nalenz.org/api/v1) (add `?format=md` for Markdown); the OpenAPI document is at `/api/v1/openapi.json`.
+
+| Endpoint | What you get |
+| --- | --- |
+| `/api/v1/overview` | The research question, sub-questions, themes → topics with sizes and mean grade, distributions. |
+| `/api/v1/posts` | Posts as rows with labels inlined; filter by `theme`, `topic`, `question`, `minGrade`, `role`, `kind`, `language`, `since`, `until`, `q`; paginated. |
+| `/api/v1/posts/{id}` | One post with rationale, sub-questions and its nearest neighbours on the map. |
+| `/api/v1/themes`, `/topics`, `/questions` (+ `/{id}`) | The organising structures, each with its posts. |
+| `/api/v1/search?q=` | Semantic search over post summaries. |
+| `/api/v1/export?format=md` | The whole corpus as one Markdown document grouped theme → topic → posts. |
+| `/api/mcp` | MCP server (Streamable HTTP, no auth) with the same operations as tools. |
+
+Every JSON response is `{ data, page?, snapshot }`; every error is `{ error: { code, message, hint, docs } }`. Reads come from the published snapshot and cost nothing; only search touches OpenAI and Atlas. Design: `docs/superpowers/specs/2026-11-02-llm-api-design.md`.
 
 ## Development
 
