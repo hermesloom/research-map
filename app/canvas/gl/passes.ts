@@ -67,9 +67,10 @@ export class PointLayer {
     if (this.count === 0) return 0; const gl = this.P.gl, p = this.P.point; gl.useProgram(p.prog); gl.uniform4fv(p.uni.u_view, v.view); gl.uniform2fv(p.uni.u_res, v.res); gl.uniform1f(p.uni.u_dpr, v.dpr); gl.uniform1f(p.uni.u_t, t); gl.uniform1f(p.uni.u_r, radius); gl.uniform1f(p.uni.u_ring, 0);
     gl.bindVertexArray(this.vao); gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, this.count); gl.bindVertexArray(null); return 1;
   }
-  drawRing(v: View, t: number, row: number, radius: number): number {
-    if (row < 0 || row >= this.count) return 0; const gl = this.P.gl, p = this.P.point; this.bind(this.ringVao, row);
-    gl.useProgram(p.prog); gl.uniform4fv(p.uni.u_view, v.view); gl.uniform2fv(p.uni.u_res, v.res); gl.uniform1f(p.uni.u_dpr, v.dpr); gl.uniform1f(p.uni.u_t, t); gl.uniform1f(p.uni.u_r, radius + 9); gl.uniform1f(p.uni.u_ring, 1); gl.uniform4f(p.uni.u_ringColor, 156 / 255, 196 / 255, 1, 1);
+  /** A 2-px ring around one row at `radius` (CSS px) in `rgba` (0–1, alpha = ring opacity); re-uses the row's from/to attributes so it follows the tween. */
+  drawRing(v: View, t: number, row: number, radius: number, rgba: [number, number, number, number] = [156 / 255, 196 / 255, 1, 1]): number {
+    if (row < 0 || row >= this.count || rgba[3] <= 0) return 0; const gl = this.P.gl, p = this.P.point; this.bind(this.ringVao, row);
+    gl.useProgram(p.prog); gl.uniform4fv(p.uni.u_view, v.view); gl.uniform2fv(p.uni.u_res, v.res); gl.uniform1f(p.uni.u_dpr, v.dpr); gl.uniform1f(p.uni.u_t, t); gl.uniform1f(p.uni.u_r, radius); gl.uniform1f(p.uni.u_ring, 1); gl.uniform4f(p.uni.u_ringColor, rgba[0], rgba[1], rgba[2], rgba[3]);
     gl.bindVertexArray(this.ringVao); gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, 1); gl.bindVertexArray(null); return 1;
   }
   dispose() { const gl = this.P.gl; gl.deleteVertexArray(this.vao); gl.deleteVertexArray(this.ringVao); gl.deleteBuffer(this.fromBuf); gl.deleteBuffer(this.toBuf); gl.deleteBuffer(this.colBuf); }

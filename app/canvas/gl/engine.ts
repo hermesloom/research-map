@@ -7,6 +7,7 @@ import { Interaction } from "./interaction";
 import { TerrainService } from "./terrainService";
 import { tweenProgress, mixPositions, pickNearest, pointRadius, terrainAlpha } from "./state";
 import type { RGB, TerrainInput, TerrainMesh } from "../terrain/types";
+import { RECENT_RGB, type Highlight } from "../recent";
 
 export type EngineData = { x: Float32Array; y: Float32Array; rgba: Uint8Array; cat: Uint16Array; catRGB: RGB[] };
 export type EngineOpts = { onCamera?: (c: Camera) => void; onPick?: (row: number) => void; terrain?: TerrainService };
@@ -25,7 +26,7 @@ export class MapEngine {
   private data: EngineData | null = null; private from: Float32Array | null = null; private to: Float32Array | null = null; private cur: Float32Array | null = null; private curX: Float32Array | null = null; private curY: Float32Array | null = null;
   private tweenT0 = -1; private tweenT = 1;
   private labelsIn: LabelIn[] = []; private labelsDirty = true; private camDirty = true; private lastCamMove = 0; private spacingPx = Infinity;
-  private wantedKey: string | null = null; private selected = -1; private fitAnchors: { x: number; y: number }[] = []; private fitFill = 0.85;
+  private wantedKey: string | null = null; private selected = -1; private highlights: Highlight[] = []; private fitAnchors: { x: number; y: number }[] = []; private fitFill = 0.85;
   private dirty = true; private raf = 0; private destroyed = false; private lost = false;
   private drawCalls = 0; private frameMs: number[] = [];
 
@@ -94,6 +95,9 @@ export class MapEngine {
   }
   setLabels(l: LabelIn[]) { this.labelsIn = l; this.labelsDirty = true; }
   setSelected(row: number) { this.selected = row; this.dirty = true; }
+  /** Recency rings: one per row, drawn inside the selection ring with the given opacity. */
+  setHighlights(h: Highlight[]) { this.highlights = h; this.dirty = true; }
+  highlightRows() { return this.highlights.slice(); }
   setCamera(c: Camera) { this.cam = this.fitScale > 0 ? { ...c, scale: clampScale(c.scale, this.fitScale) } : c; this.dirty = true; this.camDirty = true; this.lastCamMove = performance.now(); this.opts.onCamera?.(this.cam); }
   flyTo(x: number, y: number, scale?: number) { this.setCamera({ x, y, scale: scale ?? Math.max(this.cam.scale, this.fitScale * 10) }); }
   fit() { if (this.curX && this.curY) this.setCamera(fitCameraTo(this.curX, this.curY, this.fitAnchors, this.vp, this.fitFill)); }
@@ -136,12 +140,16 @@ export class MapEngine {
     this.layers = this.layers.filter((L) => { if (L.out && now - L.t0 >= CROSSFADE_MS) { L.layer?.dispose(); return false; } return true; });
     for (const L of this.layers) { if (!L.layer) continue; const f = Math.min(1, (now - L.t0) / CROSSFADE_MS); const a = (L.out ? 1 - f : f) * zoomA; calls += L.layer.drawFill(v, a); }
     for (const L of this.layers) { if (!L.layer) continue; const f = Math.min(1, (now - L.t0) / CROSSFADE_MS); const a = (L.out ? 1 - f : f) * zoomA; calls += L.layer.drawLines(v, a); }
-    if (this.points) { const r = pointRadius(this.cam.scale / (this.fitScale || 1)); calls += this.points.draw(v, this.tweenT, r); calls += this.points.drawRing(v, this.tweenT, this.selected, r); }
+    if (this.points) {
+      const r = pointRadius(this.cam.scale / (this.fitScale || 1)); calls += this.points.draw(v, this.tweenT, r);
+      for (const h of this.highlights) calls += this.points.drawRing(v, this.tweenT, h.row, r + 5, [RECENT_RGB[0] / 255, RECENT_RGB[1] / 255, RECENT_RGB[2] / 255, h.alpha]);
+      calls += this.points.drawRing(v, this.tweenT, this.selected, r + 9);
+    }
     this.drawCalls = calls;
   }
   private drawOverlay(now: number) {
     void now; const r = pointRadius(this.cam.scale / (this.fitScale || 1));
-    const pts = this.mode === "overlay-only" && this.curX && this.curY && this.data ? { x: this.curX, y: this.curY, rgba: this.data.rgba, radius: r, cam: this.cam, selected: this.selected } : undefined;
+    const pts = this.mode === "overlay-only" && this.curX && this.curY && this.data ? { x: this.curX, y: this.curY, rgba: this.data.rgba, radius: r, cam: this.cam, selected: this.selected, highlights: this.highlights } : undefined;
     this.overlay.draw(this.cam, { pointCount: this.curX?.length ?? 0, unitPx: this.cam.scale, notice: this.mode === "overlay-only" ? "terrain needs WebGL2" : undefined, points: pts });
   }
   /** Current (tweened) position of a row, for tests and fly-to. */

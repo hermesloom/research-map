@@ -11,6 +11,7 @@ import MapView, { type MapHandle } from "./MapView";
 import TopBar from "./TopBar";
 import Inspector from "./Inspector";
 import Filters, { type FilterState } from "./Filters";
+import { recentHighlights, type Highlight } from "./recent";
 
 const CENTER_ID = process.env.NEXT_PUBLIC_RESEARCH_QUESTION_POST_ID ?? "2115703316281778260";
 
@@ -53,6 +54,7 @@ export default function Canvas() {
   const fitAnchors = useMemo(() => lensAnchors(labels), [labels]);
   const rowsKey = useMemo(() => (idx ? terrainKey("rows", idx, new Float32Array(0), new Float32Array(0)) : ""), [idx]);
   const selectedRow = useMemo(() => (snap && idx && url.sel ? idx.indexOf(snap.points.ids.indexOf(url.sel)) : -1), [snap, idx, url.sel]);
+  const highlights = useMemo<Highlight[]>(() => (snap && idx && url.recent ? recentHighlights(snap.points, idx) : []), [snap, idx, url.recent]);
 
   const select = useCallback((xId: string) => { setUrl((u) => ({ ...u, sel: xId })); void loadMeta(); }, [loadMeta]);
   const onPick = useCallback((row: number) => { if (idx && snap) select(snap.points.ids[idx[row]]); }, [idx, snap, select]);
@@ -62,7 +64,7 @@ export default function Canvas() {
     <div style={{ position: "fixed", inset: 0 }}>
       {error && <div style={{ padding: 24 }}>Could not load the map: {error}</div>}
       {!error && !snap && <div style={{ padding: 24 }}>Loading map…</div>}
-      {snap && <MapView ref={map} data={data} rowsKey={rowsKey} target={target} lens={url.lens} labels={labels} fitAnchors={fitAnchors} terrain={terrain} selectedRow={selectedRow} initialCamera={initialCamera} onCamera={onCamera} onPick={onPick} />}
+      {snap && <MapView ref={map} data={data} rowsKey={rowsKey} target={target} lens={url.lens} labels={labels} fitAnchors={fitAnchors} terrain={terrain} selectedRow={selectedRow} highlights={highlights} initialCamera={initialCamera} onCamera={onCamera} onPick={onPick} />}
       {snap && <TopBar url={url} setUrl={setUrl} snap={snap} onFlyTo={flyTo} />}
       {snap && <Filters snap={snap} filters={filters} setFilters={setFilters} url={url} setUrl={setUrl} loadMeta={loadMeta} />}
       {snap && url.sel && <Inspector snap={snap} xId={url.sel} onClose={() => setUrl((u) => ({ ...u, sel: undefined }))} loadMeta={loadMeta} />}

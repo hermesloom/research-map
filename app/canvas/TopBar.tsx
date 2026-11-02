@@ -35,6 +35,7 @@ export default function TopBar({ url, setUrl, snap, onFlyTo }: { url: UrlState; 
           <input type="range" min={0} max={3} step={1} value={url.minGrade} aria-label="Minimum relevance grade" onChange={(e) => setUrl((u) => ({ ...u, minGrade: Number(e.target.value) }))} />
         </label>
         <label className="ctl"><input type="checkbox" checked={url.showAll} onChange={(e) => setUrl((u) => ({ ...u, showAll: e.target.checked }))} /> show everything</label>
+        <label className="ctl" title="Ring the 20 most recent displayed posts: newest brightest, fading with age"><input type="checkbox" checked={url.recent} aria-label="Highlight recent posts" onChange={(e) => setUrl((u) => ({ ...u, recent: e.target.checked }))} /> highlight recent</label>
         <button className="link" onClick={() => setAbout((a) => !a)} aria-expanded={about}>What is this?</button>
       </div>
       <div className="purpose"><em>{lens.purpose}</em> <span className="dim">keeps: {lens.preserves.join(", ")} · drops: {lens.drops.join(", ")}</span></div>

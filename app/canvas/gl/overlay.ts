@@ -1,5 +1,6 @@
 import { placeLabels, LabelFader, labelSpacingPx, type LabelIn, type LabelState, type Measure } from "../render/labels";
 import { project, type Camera, type Viewport } from "../render/camera";
+import { RECENT_RGB, type Highlight } from "../recent";
 
 /** Transparent Canvas 2D layer above the GL canvas: labels (placed with hysteresis, faded), scale bar, point counter, notices; in overlay-only mode also the points. */
 export class Overlay {
@@ -20,7 +21,7 @@ export class Overlay {
   get animating() { return this.fader.animating; }
   labels(): { text: string; level: number; opacity: number; row?: number }[] { return this.states.map((s) => ({ text: s.box.text, level: s.box.level, opacity: s.opacity, row: s.box.row })); }
   /** Draw labels (re-projected from their anchors with the current camera, so they track the map between placement passes), the status bar, and in overlay-only mode the points. */
-  draw(cam: Camera, opts: { pointCount: number; unitPx: number; notice?: string; points?: { x: Float32Array; y: Float32Array; rgba: Uint8Array; radius: number; cam: Camera; selected: number } }) {
+  draw(cam: Camera, opts: { pointCount: number; unitPx: number; notice?: string; points?: { x: Float32Array; y: Float32Array; rgba: Uint8Array; radius: number; cam: Camera; selected: number; highlights?: Highlight[] } }) {
     const ctx = this.ctx, { w, h } = this.vp; ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); ctx.clearRect(0, 0, w, h);
     if (opts.points) this.drawPoints(opts.points);
     ctx.textBaseline = "middle"; ctx.textAlign = "center"; ctx.lineJoin = "round";
@@ -39,13 +40,14 @@ export class Overlay {
     ctx.fillText(String(bar < 1 ? +bar.toFixed(3) : bar), bx0 - 6, h - 14);
     if (opts.notice) { ctx.textAlign = "left"; ctx.fillStyle = "rgba(230,200,120,0.9)"; ctx.fillText(opts.notice, 14, h - 14); }
   }
-  private drawPoints(p: { x: Float32Array; y: Float32Array; rgba: Uint8Array; radius: number; cam: Camera; selected: number }) {
+  private drawPoints(p: { x: Float32Array; y: Float32Array; rgba: Uint8Array; radius: number; cam: Camera; selected: number; highlights?: Highlight[] }) {
     const ctx = this.ctx, { w, h } = this.vp; const groups = new Map<number, Path2D>(); const pad = p.radius + 2; const view = new Uint32Array(p.rgba.buffer, p.rgba.byteOffset, p.rgba.length / 4);
     for (let i = 0; i < p.x.length; i++) {
       const X = w / 2 + (p.x[i] - p.cam.x) * p.cam.scale, Y = h / 2 - (p.y[i] - p.cam.y) * p.cam.scale; if (X < -pad || Y < -pad || X > w + pad || Y > h + pad) continue;
       let path = groups.get(view[i]); if (!path) { path = new Path2D(); groups.set(view[i], path); } path.moveTo(X + p.radius, Y); path.arc(X, Y, p.radius, 0, Math.PI * 2);
     }
     for (const [packed, path] of groups) { const o = [...groups.keys()].indexOf(packed); void o; const i = view.indexOf(packed); ctx.fillStyle = `rgba(${p.rgba[4 * i]},${p.rgba[4 * i + 1]},${p.rgba[4 * i + 2]},${p.rgba[4 * i + 3] / 255})`; ctx.fill(path); }
+    for (const hl of p.highlights ?? []) { if (hl.row < 0 || hl.row >= p.x.length) continue; const X = w / 2 + (p.x[hl.row] - p.cam.x) * p.cam.scale, Y = h / 2 - (p.y[hl.row] - p.cam.y) * p.cam.scale; ctx.strokeStyle = `rgba(${RECENT_RGB[0]},${RECENT_RGB[1]},${RECENT_RGB[2]},${hl.alpha})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(X, Y, p.radius + 5, 0, Math.PI * 2); ctx.stroke(); }
     if (p.selected >= 0 && p.selected < p.x.length) { const X = w / 2 + (p.x[p.selected] - p.cam.x) * p.cam.scale, Y = h / 2 - (p.y[p.selected] - p.cam.y) * p.cam.scale; ctx.strokeStyle = "#9cc4ff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(X, Y, p.radius + 9, 0, Math.PI * 2); ctx.stroke(); }
   }
 }

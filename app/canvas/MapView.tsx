@@ -6,12 +6,13 @@ import { buildTerrain } from "./terrain/build";
 import type { TerrainInput } from "./terrain/types";
 import type { Camera } from "./render/camera";
 import type { LabelIn } from "./render/labels";
+import type { Highlight } from "./recent";
 
 export type MapHandle = { flyTo: (x: number, y: number, scale?: number) => void; fit: () => void; camera: () => Camera | null };
-type Props = { data: EngineData | null; rowsKey: string; target: { x: Float32Array; y: Float32Array } | null; lens: string; labels: LabelIn[]; fitAnchors: { x: number; y: number }[]; terrain: { key: string; input: TerrainInput } | null; selectedRow: number; initialCamera: Camera | null; onCamera: (c: Camera) => void; onPick: (row: number) => void };
+type Props = { data: EngineData | null; rowsKey: string; target: { x: Float32Array; y: Float32Array } | null; lens: string; labels: LabelIn[]; fitAnchors: { x: number; y: number }[]; terrain: { key: string; input: TerrainInput } | null; selectedRow: number; highlights: Highlight[]; initialCamera: Camera | null; onCamera: (c: Camera) => void; onPick: (row: number) => void };
 
 /** React shell around MapEngine: a WebGL2 canvas for geometry and a Canvas 2D overlay for text, stacked. Props in, imperative fly-to out; no per-frame React state. */
-const MapView = forwardRef<MapHandle, Props>(function MapView({ data, rowsKey, target, lens, labels, fitAnchors, terrain, selectedRow, initialCamera, onCamera, onPick }, ref) {
+const MapView = forwardRef<MapHandle, Props>(function MapView({ data, rowsKey, target, lens, labels, fitAnchors, terrain, selectedRow, highlights, initialCamera, onCamera, onPick }, ref) {
   const glRef = useRef<HTMLCanvasElement>(null); const ovRef = useRef<HTMLCanvasElement>(null); const engine = useRef<MapEngine | null>(null); const lastLens = useRef(lens); const lastRows = useRef(rowsKey);
   const latest = useRef({ fitAnchors, lens }); latest.current = { fitAnchors, lens };
   const cbs = useRef({ onCamera, onPick }); cbs.current = { onCamera, onPick };
@@ -22,7 +23,7 @@ const MapView = forwardRef<MapHandle, Props>(function MapView({ data, rowsKey, t
     const ro = new ResizeObserver(doResize); ro.observe(host); doResize();
     // devicePixelRatio changes (window dragged to another monitor, browser zoom) do not fire ResizeObserver: watch the resolution media query
     let mq: MediaQueryList | null = null; const watchDpr = () => { mq?.removeEventListener("change", onDpr); mq = matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`); mq.addEventListener("change", onDpr); }; const onDpr = () => { doResize(); watchDpr(); }; watchDpr();
-    (window as unknown as { __map?: unknown }).__map = { stats: () => eng.stats(), readPixel: (x: number, y: number) => eng.readPixel(x, y), labels: () => eng.placedLabels(), camera: () => eng.camera, setCamera: (c: Camera) => eng.setCamera(c), project: (x: number, y: number) => eng.project(x, y), pointAt: (row: number) => eng.pointAt(row) };
+    (window as unknown as { __map?: unknown }).__map = { stats: () => eng.stats(), readPixel: (x: number, y: number) => eng.readPixel(x, y), labels: () => eng.placedLabels(), camera: () => eng.camera, setCamera: (c: Camera) => eng.setCamera(c), project: (x: number, y: number) => eng.project(x, y), pointAt: (row: number) => eng.pointAt(row), highlights: () => eng.highlightRows() };
     return () => { ro.disconnect(); mq?.removeEventListener("change", onDpr); eng.destroy(); service.dispose(); engine.current = null; };
   }, []);
   useEffect(() => { if (!data || !engine.current) return; const snap = lastRows.current !== rowsKey; lastRows.current = rowsKey; engine.current.setData(data, initialCamera, { snap, fitAnchors: latest.current.fitAnchors, fitFill: latest.current.lens === "time" ? 0.6 : 0.85 }); }, [data]);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -30,6 +31,7 @@ const MapView = forwardRef<MapHandle, Props>(function MapView({ data, rowsKey, t
   useEffect(() => { if (!engine.current) return; if (terrain) engine.current.setTerrain(terrain.key, terrain.input); else engine.current.clearTerrain(); }, [terrain]);
   useEffect(() => { engine.current?.setLabels(labels); }, [labels]);
   useEffect(() => { engine.current?.setSelected(selectedRow); }, [selectedRow]);
+  useEffect(() => { engine.current?.setHighlights(highlights); }, [highlights]);
   useImperativeHandle(ref, () => ({ flyTo: (x, y, s) => engine.current?.flyTo(x, y, s), fit: () => engine.current?.fit(), camera: () => engine.current?.camera ?? null }), []);
   return (<div style={{ position: "absolute", inset: 0, overflow: "hidden" }}><canvas ref={glRef} style={{ display: "block", position: "absolute", inset: 0 }} /><canvas ref={ovRef} style={{ display: "block", position: "absolute", inset: 0 }} /></div>);
 });
