@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { doubleShift } from "./shortcuts";
 import { runIngest, FRESH_KEY } from "./ingest";
 
-/** Press Shift+I twice: a plain prompt asks for CRON_SECRET, then the daily ingest runs right now and the page reloads with a fresh manifest. */
+/** Press Shift+I twice: a plain prompt asks for CRON_SECRET, the daily ingest starts server-side, the page polls until it is done and reloads with a fresh manifest. */
 export default function IngestShortcut() {
   useEffect(() => {
     let busy = false;

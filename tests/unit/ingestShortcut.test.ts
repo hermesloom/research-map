@@ -12,18 +12,34 @@ describe("doubleShift", () => {
   });
 });
 describe("runIngest", () => {
-  const json = (status: number, body: unknown) => async () => new Response(JSON.stringify(body), { status });
-  it("sends the secret as bearer and summarises the run", async () => {
-    const f = vi.fn<typeof fetch>(json(200, { ok: true, counts: { ingested: 2, published: 140 }, errors: [], notes: ["relayoutRecommended"] }));
-    const r = await runIngest("s3cret", f as unknown as typeof fetch);
-    expect(f.mock.calls[0][0]).toBe("/api/cron/ingest"); expect(f.mock.calls[0][1]?.headers).toEqual({ authorization: "Bearer s3cret" });
-    expect(r).toEqual({ ok: true, message: "Ingest done: ingested 2, published 140\nrelayoutRecommended" });
+  const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
+  const finished = { ok: true, counts: { ingested: 2, published: 140 }, errors: [], notes: ["relevantNote"], startedAt: "2026-11-03T22:00:00.000Z", finishedAt: "2026-11-03T22:01:30.000Z" };
+  /** A fake server: POST starts a run, GET answers with whatever the script says next. */
+  const server = (polls: unknown[], startStatus = 202) => {
+    const f = vi.fn(async (url: string, init?: RequestInit) => init?.method === "POST" ? json(startStatus, { startedAt: "2026-11-03T22:00:00.000Z" }) : json(200, { run: polls.shift() ?? null }));
+    return f as unknown as typeof fetch & { mock: { calls: Array<[string, RequestInit?]> } };
+  };
+  const quiet = { sleep: async () => {}, pollMs: 1 };
+  it("starts the run with the secret as bearer, polls until finishedAt and summarises", async () => {
+    const f = server([null, { ...finished, finishedAt: undefined }, finished]);
+    const r = await runIngest("s3cret", f, quiet);
+    expect(f.mock.calls[0]).toEqual(["/api/cron/ingest/manual", { method: "POST", headers: { authorization: "Bearer s3cret" } }]);
+    expect(f.mock.calls[1][0]).toBe("/api/cron/ingest/manual?since=2026-11-03T22%3A00%3A00.000Z"); expect(f.mock.calls[1][1]?.headers).toEqual({ authorization: "Bearer s3cret" });
+    expect(f).toHaveBeenCalledTimes(4);
+    expect(r).toEqual({ ok: true, message: "Ingest done: ingested 2, published 140\nrelevantNote" });
   });
-  it("maps 401, errors and network failures", async () => {
-    expect(await runIngest("x", json(401, "unauthorized") as unknown as typeof fetch)).toEqual({ ok: false, message: "Wrong key." });
-    expect((await runIngest("x", json(500, { ok: false, counts: {}, errors: ["X down"], notes: [] }) as unknown as typeof fetch)).message).toBe("Ingest finished with errors: nothing changed\nerror: X down");
-    expect((await runIngest("x", (async () => { throw new Error("offline"); }) as unknown as typeof fetch)).message).toMatch(/offline/);
-    expect((await runIngest("x", (async () => new Response("<html>", { status: 502 })) as unknown as typeof fetch)).message).toBe("Ingest failed: HTTP 502");
+  it("keeps polling through a transient network blip", async () => {
+    let n = 0;
+    const f = vi.fn(async (_url: string, init?: RequestInit) => { if (init?.method === "POST") return json(202, { startedAt: "2026-11-03T22:00:00.000Z" }); if (n++ === 0) throw new Error("offline"); return json(200, { run: finished }); });
+    expect((await runIngest("x", f as unknown as typeof fetch, quiet)).ok).toBe(true);
+  });
+  it("maps 401, a failed run, a start failure and a run that outlives the wait", async () => {
+    expect(await runIngest("x", server([], 401), quiet)).toEqual({ ok: false, message: "Wrong key." });
+    expect(await runIngest("x", server([], 502), quiet)).toEqual({ ok: false, message: "Ingest failed: HTTP 502" });
+    expect((await runIngest("x", server([{ ...finished, ok: false, counts: {}, errors: ["X down"], notes: [] }]), quiet)).message).toBe("Ingest finished with errors: nothing changed\nerror: X down");
+    expect((await runIngest("x", (async () => { throw new Error("offline"); }) as unknown as typeof fetch, quiet)).message).toMatch(/Ingest request failed.*offline/);
+    let t = 0; const r = await runIngest("x", server([null, null, null]), { ...quiet, timeoutMs: 100, now: () => (t += 60) });
+    expect(r.ok).toBe(false); expect(r.message).toMatch(/still running/);
   });
 });
 describe("manifestUrl", () => {
